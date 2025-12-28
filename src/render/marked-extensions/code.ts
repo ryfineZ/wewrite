@@ -43,14 +43,22 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 	codeRenderer(code: string, infostring: string | undefined): string {
 		const lang = (infostring || '').match(/^\S*/)?.[0];
 		let highlighted = code.replace(/\n$/, '');
+		const escapeHtml = (txt: string) => txt
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
 		try {
 			if (lang && hljs.getLanguage(lang)) {
 				highlighted = hljs.highlight(highlighted, { language: lang }).value;
 			} else {
-				highlighted = hljs.highlightAuto(highlighted).value;
+				// 未指定或未知语言时不做自动高亮，保持原文
+				highlighted = escapeHtml(highlighted);
 			}
 		} catch (err) {
 			console.error(err);
+			highlighted = escapeHtml(highlighted);
 		}
 
 		// 将空格/制表符替换为 &nbsp;，保留缩进，与 NoteToMP 一致
