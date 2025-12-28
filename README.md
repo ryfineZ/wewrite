@@ -12,6 +12,7 @@
 - 性能优化：移除 Shadow DOM，简化渲染链路（直接 marked 解析，无双重渲染），主题应用异步化，减少卡顿。
 - 主题增强：切换主题下载源到当前仓库；引入 NoteToMP 全套主题并适配 `.wewrite` 根类。
 - 安装指引：新增 `INSTALL-OBSIDIAN.md`，提供本地安装/测试包（wewrite-dev）说明。
+- 插件标识：为避免与原版冲突，当前包使用 `id: wewrite-plus` / `name: WeWrite+`（社区上架前可按需调整为最终 ID）。
 
 [English Version](README_en.md)
 

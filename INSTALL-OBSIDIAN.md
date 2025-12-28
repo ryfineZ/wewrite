@@ -1,6 +1,6 @@
 ## WeWrite+ 手动安装（本地包）
 
-> 当前测试包插件 ID：`wewrite-plus`（可与原 WeWrite 共存）
+> 当前包插件 ID：`wewrite-plus`（可与原 WeWrite 共存）
 
 ### 1. 准备插件文件
 构建产物位于仓库根目录：
