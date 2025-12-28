@@ -75,23 +75,19 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 		highlighted = replaceSpaces(highlighted);
 		const lines = highlighted.split('\n');
 		let body = '';
-		let liItems = '';
 		for (let i = 0; i < lines.length; i++) {
 			let text = lines[i];
 			if (text.length === 0) text = '<br>';
 			body += '<code>' + text + '</code>';
-			liItems += `<li>${i + 1}</li>`;
 		}
 
 		let codeSection = '<section class="code-section code-snippet__fix hljs">';
-		const showLineNumber = this.previewRender.articleProperties.get('show-code-line-number');
-		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1');
-		if (enableLineNumber) {
-			codeSection += '<ul>' + liItems + '</ul>';
+		let html = '';
+		if (lang) {
+			html = codeSection + `<pre style="max-width:1000% !important;" class="hljs language-${lang}">${body}</pre></section>`;
+		} else {
+			html = codeSection + `<pre>${body}</pre></section>`;
 		}
-
-		const langClass = lang ? ` class="hljs language-${lang}"` : '';
-		let html = codeSection + `<pre style="max-width:1000% !important;"${langClass}><code>${body}</code></pre></section>`;
 		return html;
 
 	}
