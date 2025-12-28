@@ -11,10 +11,9 @@
 
 import matter from "gray-matter";
 import { Marked, Tokens } from "marked";
-import { Component, debounce } from "obsidian";
+import { Component, debounce, sanitizeHTMLToDom } from "obsidian";
 import WeWritePlugin from "src/main";
 import { WechatClient } from "../wechat-api/wechat-client";
-import { ObsidianMarkdownRenderer } from "./markdown-render";
 import { BlockquoteRenderer } from "./marked-extensions/blockquote";
 import { CodeRenderer } from "./marked-extensions/code";
 import { CodespanRenderer } from "./marked-extensions/codespan";
@@ -136,7 +135,31 @@ export class WechatRender {
 		for (let ext of this.extensions) {
 			result = await ext.postprocess(result);
 		}
+		result = this.removeEmptyListItems(result);
 		return result;
+	}
+
+	private removeEmptyListItems(html: string) {
+		// WeChat 编辑器会保留空的 <li>，导致空序号，这里统一清理掉仅含换行/空白的条目。
+		const wrapper = document.createElement('div');
+		wrapper.innerHTML = html;
+		wrapper.querySelectorAll('ol li, ul li').forEach((li) => {
+			const hasMedia = li.querySelector('img, video, figure');
+			// 彻底清理空白字符、<br> 和空标签
+			const content = li.innerHTML
+				.replace(/<br\s*\/?>/gi, '')
+				.replace(/&nbsp;/gi, '')
+				.replace(/\u00A0/g, '')
+				.replace(/<span[^>]*>\s*<\/span>/gi, '')
+				.replace(/<section[^>]*>\s*<\/section>/gi, '')
+				.replace(/<div[^>]*>\s*<\/div>/gi, '')
+				.replace(/[\s\u200B-\u200D]+/g, '')
+				.trim();
+			if (!hasMedia && content === '') {
+				li.remove();
+			}
+		});
+		return wrapper.innerHTML;
 	}
 
 	public async parseNote(
@@ -144,31 +167,11 @@ export class WechatRender {
 		container: HTMLElement,
 		view: Component
 	) {
-		//render the markdown content, 
-		container.empty();
-		container.show();
-
-		//check if add the 2classes, can  load other plugins, else we need to add load compponents.
-		const  renderContainer = container.createDiv({cls:'markdown-preview-view'})
-		const sizer = renderContainer.createDiv({cls:'markdown-preview-sizer'})
-		const {app} = this.plugin
-		 
-		// const renderer = new CustomMarkdownView(app, sizer, path, view);
-		// // this.plugin.registerMarkdownRendererChild(renderer);
-		// await renderer.onload();
-		await ObsidianMarkdownRenderer.getInstance(this.plugin.app).render(
-			path,
-			sizer,
-			view
-		);
-
-		
-		
-		
-		const  rendered = await this.delayParse(path);
-		//clean up the rendered markdown content
-		container.empty();
-		container.hide();
-		return rendered;
+		// 直接读取 Markdown 并走 marked 解析，减少双重渲染的开销
+		const md = await this.plugin.app.vault.adapter.read(path);
+		const { content } = matter(md);
+		let html = await this.marked.parse(content);
+		html = await this.postprocess(html);
+		return html;
 	}
 }

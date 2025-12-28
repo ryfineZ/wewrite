@@ -237,15 +237,8 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			cls: ".wewrite-render-preview",
 		})
 		this.renderPreviewer.hide()
-		let shadowDom = this.renderDiv.shawdowRoot;
-		if (shadowDom === undefined || shadowDom === null) {
-			shadowDom = this.renderDiv.attachShadow({ mode: 'open' });
-			shadowDom.adoptedStyleSheets = [
-				ThemeManager.getInstance(this.plugin).getShadowStleSheet()
-			];
-		}
-
-		this.containerDiv = shadowDom.createDiv({ cls: "wewrite-article" });
+		// 使用常规 DOM 容器，避免 Shadow DOM 带来的额外开销
+		this.containerDiv = this.renderDiv.createDiv({ cls: "wewrite-article" });
 		this.articleDiv = this.containerDiv.createDiv({ cls: "article-div" });
 	}
 	async checkCoverImage() {
@@ -375,9 +368,16 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		if (this.articleDiv === null || this.articleDiv.firstChild === null) {
 			return;
 		}
-		await ThemeManager.getInstance(this.plugin).applyTheme(
-			this.articleDiv.firstChild as HTMLElement
-		);
+		const element = this.articleDiv.firstChild as HTMLElement;
+		const apply = async () => {
+			if (!element.isConnected) return;
+			await ThemeManager.getInstance(this.plugin).applyTheme(element);
+		};
+		if (typeof (window as any).requestIdleCallback === 'function') {
+			(window as any).requestIdleCallback(apply);
+		} else {
+			setTimeout(apply, 0);
+		}
 	}
 	isViewActive(): boolean {
 		return this.isActive && !this.app.workspace.rightSplit.collapsed
