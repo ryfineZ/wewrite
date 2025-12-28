@@ -252,6 +252,10 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		return this.draftHeader.checkCoverImage();
 	}
 	async sendArticleToDraftBox() {
+		const root = this.articleDiv.firstElementChild as HTMLElement | null;
+		if (root) {
+			await ThemeManager.getInstance(this.plugin).applyTheme(root);
+		}
 		await uploadSVGs(this.articleDiv, this.plugin.wechatClient);
 		await uploadCanvas(this.articleDiv, this.plugin.wechatClient);
 		await uploadURLImage(this.articleDiv, this.plugin.wechatClient);

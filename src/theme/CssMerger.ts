@@ -182,17 +182,51 @@ export class CSSMerger {
 		})
 	}
 
+	private normalizeSelector(selector: string) {
+		const pseudoMatch = selector.match(/::(before|after)/);
+		const pseudo = pseudoMatch ? pseudoMatch[1] as 'before' | 'after' : null;
+		const baseSelector = pseudo ? selector.replace(/::(before|after)/g, '') : selector;
+		return { baseSelector, pseudo };
+	}
+
+	private ensurePseudoElement(target: HTMLElement, pseudo: 'before' | 'after', content: string | undefined) {
+		const attr = `data-wewrite-pseudo-${pseudo}`;
+		let pseudoEl = target.querySelector<HTMLElement>(`[${attr}]`);
+		if (!pseudoEl) {
+			pseudoEl = document.createElement('span');
+			pseudoEl.setAttribute(attr, 'true');
+			if (pseudo === 'before') {
+				target.prepend(pseudoEl);
+			} else {
+				target.append(pseudoEl);
+			}
+		}
+		if (content) {
+			pseudoEl.textContent = content.replace(/(^")|("$)/g, '');
+		}
+		return pseudoEl;
+	}
+
 	applyStyleToElement(currentNode: HTMLElement) {
 		this.rules.forEach((rule, selector) => {
+			const { baseSelector, pseudo } = this.normalizeSelector(selector);
 			try {
-				if (currentNode.matches(selector)) {
+				if (currentNode.matches(baseSelector)) {
+					let target = currentNode;
+					if (pseudo) {
+						const contentDecl = rule.get('content');
+						target = this.ensurePseudoElement(currentNode, pseudo, contentDecl?.value);
+					}
 					rule.forEach((decl, prop) => {
+						if (prop === 'content') {
+							return;
+						}
 						let value = this.resolveCssVars(decl.value, this.vars);
-						currentNode.style.setProperty(prop, decl.important ? value + ' !important' : value);
+						target.style.setProperty(prop, decl.important ? value + ' !important' : value);
 					})
 				}
 			} catch (error) {
-				console.log('error selector=>', selector, ' | Error=>', error.message);
+				console.log('error selector=>', selector, ' | Error=>', (error as Error).message);
 			}
 		})
 		let element = currentNode.firstElementChild;

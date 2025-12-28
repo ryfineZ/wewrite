@@ -288,7 +288,6 @@ export class ThemeManager {
 		const cssMerger = new CSSMerger()
 		await cssMerger.init(customCss)
 		const node = cssMerger.applyStyleToElement(htmlRoot)
-		cssMerger.removeClassName(node)
 		return node
 
 	}
