@@ -85,18 +85,10 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 
 		highlighted = replaceSpaces(highlighted);
 		const lines = highlighted.split('\n');
-		let body = '';
-		let liItems = '';
-		for (let i = 0; i < lines.length; i++) {
-			let text = lines[i];
-			if (text.length === 0) text = '<br>';
-			body += '<code>' + text + '</code>';
-			liItems += `<li>${i + 1}</li>`;
-		}
+		const body = lines.map((line) => line.length === 0 ? '<code><br></code>' : `<code>${line}</code>`).join('');
 
 		let codeSection = '<section class="code-section code-snippet__fix hljs">';
-		// 保持 WeWrite 默认不显示行号（NoteToMP 有设置项，这里不复用）
-
+		// 无行号开关，保持简洁输出
 		const langClass = lang ? ` class="hljs language-${lang}"` : '';
 		let html = codeSection + `<pre style="max-width:1000% !important;"${langClass}><code>${body}</code></pre></section>`;
 		return html;
