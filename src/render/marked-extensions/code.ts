@@ -16,6 +16,7 @@ import { replaceDivWithSection } from "src/utils/utils";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { WeWriteMarkedExtension } from "./extension";
 import { Notice } from "obsidian";
+import hljs from "highlight.js";
 export class CodeRenderer extends WeWriteMarkedExtension {
 	showLineNumber: boolean;
 	mermaidIndex: number = 0;
@@ -41,36 +42,57 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 
 	codeRenderer(code: string, infostring: string | undefined): string {
 		const lang = (infostring || '').match(/^\S*/)?.[0];
-		// 保留原始代码格式，将空格和制表符转换为HTML实体
-		const originalCode = code;
-		code = code
-			.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;') // 制表符转为4个不间断空格
-			.replace(/ /g, '&nbsp;') // 普通空格转为不间断空格
-			.replace(/\n/g, '<br>'); // 换行符转为br标签
-
-		let codeSection = '<section class="code-container"><section class="code-section-banner"></section><section class="code-section">';
-
-		const codeLineNumber = this.previewRender.articleProperties.get('show-code-line-number')
-
-		if (codeLineNumber === 'true' || codeLineNumber === 'yes' || codeLineNumber === '1') {
-			const lines = originalCode.split('\n');
-
-			let liItems = '';
-			let count = 1;
-			while (count < lines.length) {
-				liItems = liItems + `<li>${count}</li>`;
-				count = count + 1;
+		let highlighted = code.replace(/\n$/, '');
+		try {
+			if (lang && hljs.getLanguage(lang)) {
+				highlighted = hljs.highlight(highlighted, { language: lang }).value;
+			} else {
+				highlighted = hljs.highlightAuto(highlighted).value;
 			}
-			codeSection += `<ul>${liItems}</ul>`;
+		} catch (err) {
+			console.error(err);
 		}
 
-		if (!lang) {
-			codeSection += `<pre><code>${code}</code></pre>`;
-		} else {
-			codeSection += `<pre><code class="hljs language-${lang}" >${code}</code></pre>`
+		// 将空格/制表符替换为 &nbsp;，保留缩进，与 NoteToMP 一致
+		const replaceSpaces = (text: string) => {
+			let res = '';
+			let inTag = false;
+			for (const ch of text) {
+				if (ch === '<') {
+					inTag = true; res += ch; continue;
+				}
+				if (ch === '>') {
+					inTag = false; res += ch; continue;
+				}
+				if (inTag) { res += ch; continue; }
+				if (ch === ' ') res += '&nbsp;';
+				else if (ch === '\t') res += '&nbsp;&nbsp;&nbsp;&nbsp;';
+				else res += ch;
+			}
+			return res;
+		};
+
+		highlighted = replaceSpaces(highlighted);
+		const lines = highlighted.split('\n');
+		let body = '';
+		let liItems = '';
+		for (let i = 0; i < lines.length; i++) {
+			let text = lines[i];
+			if (text.length === 0) text = '<br>';
+			body += '<code>' + text + '</code>';
+			liItems += `<li>${i + 1}</li>`;
 		}
 
-		return codeSection + '</section></section>';
+		let codeSection = '<section class="code-section code-snippet__fix hljs">';
+		const showLineNumber = this.previewRender.articleProperties.get('show-code-line-number');
+		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1' || showLineNumber === undefined);
+		if (enableLineNumber) {
+			codeSection += '<ul>' + liItems + '</ul>';
+		}
+
+		const langClass = lang ? ` class="hljs language-${lang}"` : '';
+		let html = codeSection + `<pre style="max-width:1000% !important;"${langClass}><code>${body}</code></pre></section>`;
+		return html;
 
 	}
 
@@ -256,4 +278,3 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 		}
 	}
 }
-
