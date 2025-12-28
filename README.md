@@ -1,5 +1,18 @@
 # WeWrite - 微信公众号写作Obsidian 插件
 
+> 维护说明：原作者 Learner Chen 近期开源仓库更新较少，本 fork 由 ryfineZ 持续维护，修复兼容问题并优化性能，保留原作者署名。
+
+### 本次 fork 的背景与修复
+- 原版维护节奏较慢，微信草稿编辑态会在列表中插入空行/空序号。
+- 预览性能欠佳：Shadow DOM + 双重渲染链路，切换/输入时卡顿。
+- 主题获取不稳定：远程主题源不易访问，样式选择受限。
+
+### 我们的改动（持续迭代中）
+- 列表兼容：清理空节点，避免微信编辑态插入空 `<li>` 并重排编号。
+- 性能优化：移除 Shadow DOM，简化渲染链路（直接 marked 解析，无双重渲染），主题应用异步化，减少卡顿。
+- 主题增强：切换主题下载源到当前仓库；引入 NoteToMP 全套主题并适配 `.wewrite` 根类。
+- 安装指引：新增 `INSTALL-OBSIDIAN.md`，提供本地安装/测试包（wewrite-dev）说明。
+
 [English Version](README_en.md)
 
 ## 概述
@@ -96,5 +109,3 @@ WeWrite 是 Obsidian (https://obsidian.md) 的一款插件。
 ## 许可证
 
 本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
-
-
