@@ -294,6 +294,12 @@ export class ThemeManager {
 			await this.cssMerger.init(customCss);
 			this.cachedCssKey = cssKey;
 		}
+		// 如果已经应用过相同主题则跳过，减少重复遍历
+		if ((htmlRoot as any).dataset?.wewriteThemeKey === cssKey) {
+			return htmlRoot;
+		}
+		const node = this.cssMerger.applyStyleToElement(htmlRoot);
+		(node as any).dataset.wewriteThemeKey = cssKey;
 		return this.cssMerger.applyStyleToElement(htmlRoot);
 
 	}
