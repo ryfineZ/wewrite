@@ -84,11 +84,7 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 		}
 
 		let codeSection = '<section class="code-section code-snippet__fix hljs">';
-		const showLineNumber = this.previewRender.articleProperties.get('show-code-line-number');
-		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1');
-		if (enableLineNumber) {
-			codeSection += '<ul>' + liItems + '</ul>';
-		}
+		// 保持 WeWrite 默认不显示行号（NoteToMP 有设置项，这里不复用）
 
 		const langClass = lang ? ` class="hljs language-${lang}"` : '';
 		let html = codeSection + `<pre style="max-width:1000% !important;"${langClass}><code>${body}</code></pre></section>`;
