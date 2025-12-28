@@ -1,6 +1,6 @@
 ## WeWrite+ 手动安装（本地包）
 
-> 当前测试包插件 ID：`wewrite-ryfine`（可与原 WeWrite 共存）
+> 当前测试包插件 ID：`wewrite-plus`（可与原 WeWrite 共存）
 
 ### 1. 准备插件文件
 构建产物位于仓库根目录：
@@ -10,8 +10,8 @@
 
 ### 2. 复制到 Vault 插件目录
 1. 打开你的 Obsidian Vault 路径，例如 `<你的库>/.obsidian/plugins/`。
-2. 在 `plugins` 下创建目录 `wewrite-ryfine`（保持与 manifest 中的 id 一致）。
-3. 将上述 3 个文件复制到 `…/.obsidian/plugins/wewrite-ryfine/`：
+2. 在 `plugins` 下创建目录 `wewrite-plus`（保持与 manifest 中的 id 一致）。
+3. 将上述 3 个文件复制到 `…/.obsidian/plugins/wewrite-plus/`：
    - 不需要 `node_modules`、源码或其他文件。
    - 如果已存在旧版同名目录，先删除/备份旧的 `main.js`/`manifest.json`/`styles.css` 后再覆盖。
 
