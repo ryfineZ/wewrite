@@ -41,9 +41,8 @@
 }
 
 .wewrite ul li::before {
-	content: "✔"; /* 或 url(...) */
-  	color: green;
-  	margin-right: 0.5em;
+	content: none;
+	margin: 0;
 }
 
 .wewrite ul li ul {

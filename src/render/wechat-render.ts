@@ -66,6 +66,25 @@ export class WechatRender {
 		this.client = WechatClient.getInstance(plugin);
 		this.marked = new Marked();
 		this.marked.use(markedOptiones);
+		this.marked.use({
+			renderer: {
+				list(this: any, token: Tokens.List) {
+					let body = '';
+					if (token.items) {
+						for (const item of token.items) {
+							body += this.listitem(item);
+						}
+					}
+					const type = token.ordered ? 'ol' : 'ul';
+					const startatt = (token.ordered && token.start !== 1) ? (' start="' + token.start + '"') : '';
+					return '<' + type + startatt + ' class="list-paddingleft-1">' + body + '</' + type + '>';
+				},
+				listitem(this: any, token: Tokens.ListItem) {
+					const body = token.tokens ? this.parser.parse(token.tokens) : (token.text || '');
+					return `<li><section>${body}</section></li>`;
+				},
+			} as any
+		});
 		this.useExtensions();
 	}
 	static getInstance(plugin: WeWritePlugin, previewRender: PreviewRender) {
