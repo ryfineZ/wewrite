@@ -40,11 +40,6 @@
 	padding-left: var(--list-padding-left);
 }
 
-.wewrite ul li::before {
-	content: none;
-	margin: 0;
-}
-
 .wewrite ul li ul {
   list-style-type: circle;
   padding-left: var(--list-padding-left);
