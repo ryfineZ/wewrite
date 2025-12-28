@@ -85,7 +85,7 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 
 		let codeSection = '<section class="code-section code-snippet__fix hljs">';
 		const showLineNumber = this.previewRender.articleProperties.get('show-code-line-number');
-		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1' || showLineNumber === undefined);
+		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1');
 		if (enableLineNumber) {
 			codeSection += '<ul>' + liItems + '</ul>';
 		}
