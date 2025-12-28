@@ -14,6 +14,9 @@ export type WeChatTheme = {
 
 }
 export class ThemeManager {
+	private cssMerger: CSSMerger | null = null;
+	private cachedCssKey: string | null = null;
+
 	async downloadThemes() {
 		const baseUrlAlter = "https://raw.githubusercontent.com/ryfineZ/wewrite/master/themes/";
 		const baseUrl = "https://raw.githubusercontent.com/ryfineZ/wewrite/master/themes/";
@@ -284,11 +287,14 @@ export class ThemeManager {
 	}
 
 	public async applyTheme(htmlRoot: HTMLElement) {
-		const customCss = await this.getCSS()
-		const cssMerger = new CSSMerger()
-		await cssMerger.init(customCss)
-		const node = cssMerger.applyStyleToElement(htmlRoot)
-		return node
+		const customCss = await this.getCSS();
+		const cssKey = customCss;
+		if (!this.cssMerger || this.cachedCssKey !== cssKey) {
+			this.cssMerger = new CSSMerger();
+			await this.cssMerger.init(customCss);
+			this.cachedCssKey = cssKey;
+		}
+		return this.cssMerger.applyStyleToElement(htmlRoot);
 
 	}
 }

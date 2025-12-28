@@ -66,7 +66,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		if (this.plugin.settings.realTimeRender) {
 			await this.renderDraft();
 		}
-	}, 2000);
+	}, 1000);
 	private debouncedUpdate = debounce(async () => {
 		if (this.plugin.settings.realTimeRender) {
 			await this.renderDraft();
