@@ -43,22 +43,14 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 	codeRenderer(code: string, infostring: string | undefined): string {
 		const lang = (infostring || '').match(/^\S*/)?.[0];
 		let highlighted = code.replace(/\n$/, '');
-		const escapeHtml = (txt: string) => txt
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;');
 		try {
 			if (lang && hljs.getLanguage(lang)) {
 				highlighted = hljs.highlight(highlighted, { language: lang }).value;
 			} else {
-				// 未指定或未知语言时不做自动高亮，保持原文
-				highlighted = escapeHtml(highlighted);
+				highlighted = hljs.highlightAuto(highlighted).value;
 			}
 		} catch (err) {
 			console.error(err);
-			highlighted = escapeHtml(highlighted);
 		}
 
 		// 将空格/制表符替换为 &nbsp;，保留缩进，与 NoteToMP 一致
@@ -82,10 +74,22 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 
 		highlighted = replaceSpaces(highlighted);
 		const lines = highlighted.split('\n');
-		const body = lines.map((line) => line.length === 0 ? '<code><br></code>' : `<code>${line}</code>`).join('');
+		let body = '';
+		let liItems = '';
+		for (let i = 0; i < lines.length; i++) {
+			let text = lines[i];
+			if (text.length === 0) text = '<br>';
+			body += '<code>' + text + '</code>';
+			liItems += `<li>${i + 1}</li>`;
+		}
 
 		let codeSection = '<section class="code-section code-snippet__fix hljs">';
-		// 无行号开关，保持简洁输出
+		const showLineNumber = this.previewRender.articleProperties.get('show-code-line-number');
+		const enableLineNumber = (showLineNumber === 'true' || showLineNumber === 'yes' || showLineNumber === '1');
+		if (enableLineNumber) {
+			codeSection += '<ul>' + liItems + '</ul>';
+		}
+
 		const langClass = lang ? ` class="hljs language-${lang}"` : '';
 		let html = codeSection + `<pre style="max-width:1000% !important;"${langClass}><code>${body}</code></pre></section>`;
 		return html;
