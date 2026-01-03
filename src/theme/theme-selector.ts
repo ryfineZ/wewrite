@@ -14,17 +14,17 @@ export class ThemeSelector {
     constructor(plugin: WeWritePlugin) {
         this.plugin = plugin;
         this._themeManager = ThemeManager.getInstance(plugin)
-		this.plugin.messageService.registerListener('custom-theme-folder-changed', async () => {
-			this.updateThemeOptions()
+		this.plugin.messageService.registerListener('custom-theme-folder-changed', () => {
+			void this.updateThemeOptions()
 		})
     }
     public async dropdown(themDropdown: DropdownComponent) {
         this._themeDropdown = themDropdown;
         await this.updateThemeOptions()
 
-        themDropdown.onChange(async (value) => {
+        themDropdown.onChange((value) => {
             this.plugin.settings.custom_theme = value
-            this.plugin.saveSettings()
+            void this.plugin.saveSettings()
             this.plugin.messageService.sendMessage('custom-theme-changed', value)
         })
     }
@@ -46,9 +46,7 @@ export class ThemeSelector {
     }
     onThemeChange(file: TFile) {
         if (file instanceof TFile && file.extension === 'md' && file.path.startsWith(this.plugin.settings.css_styles_folder)) {
-            this.updateThemeOptions()
-        } else {
-
+            void this.updateThemeOptions()
         }
     }
     public startWatchThemes() {

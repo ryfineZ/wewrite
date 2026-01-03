@@ -25,25 +25,23 @@ export class ThemeManager {
 		// Create save directory if it doesn't exist
 		if (!this.plugin.app.vault.getAbstractFileByPath(saveDir)) {
 			await this.plugin.app.vault.createFolder(saveDir);
-
-		} else {
 		}
 
 		// Check if github is reachable, if not, use gitee
 		let url = baseUrl;
-		requestUrl(`${baseUrl}themes.json`).then((response) => {
+		void requestUrl(`${baseUrl}themes.json`).then((response) => {
 			if (response.status === 200) {
 				// The URL is valid, use it
 				url = baseUrl;
-				console.log(`Using GitHub URL: ${url}`);
+				console.debug(`Using GitHub URL: ${url}`);
 			} else {
 				// The URL is not valid, use the alternative URL
-				console.log(`status error, Using Gitee URL: ${baseUrlAlter}`);
+				console.debug(`status error, Using Gitee URL: ${baseUrlAlter}`);
 				url = baseUrlAlter;
 			}
 		}).catch((error) => {
 			// The URL is not valid, use the alternative URL
-			console.log(`exception, Using Gitee URL: ${baseUrlAlter}`);
+			console.debug(`exception, Using Gitee URL: ${baseUrlAlter}`);
 			url = baseUrlAlter;
 		});
 
@@ -85,7 +83,9 @@ export class ThemeManager {
 					await this.plugin.app.vault.create(filePath, fileContent);
 				} catch (error) {
 					console.error(error);
-					new Notice($t('views.theme-manager.error-downloading-theme') + error.message);
+					const message =
+						error instanceof Error ? error.message : String(error);
+					new Notice($t('views.theme-manager.error-downloading-theme') + message);
 					continue;
 				}
 			}
@@ -179,19 +179,17 @@ export class ThemeManager {
 		while ((match = reg_css_block.exec(fileContent)) !== null) {
 			cssBlocks.push(this.cleanCSS(match[1].trim()));
 		}
-		console.log('cssBlocks=>', cssBlocks);
+			console.debug('cssBlocks=>', cssBlocks);
 
 		return cssBlocks.join('\n');
 
 	}
-	public async getCSS() {
-		let custom_css = '' //this.defaultCssRoot.toString() //''
-		if (this.plugin.settings.custom_theme === undefined || !this.plugin.settings.custom_theme) {
-
-		} else {
-			// custom_css = await this.getThemeContent(this.plugin.settings.custom_theme)
-			custom_css = await this.extractCSSblocks(this.plugin.settings.custom_theme)
-		}
+		public async getCSS() {
+			let custom_css = '' //this.defaultCssRoot.toString() //''
+			if (this.plugin.settings.custom_theme !== undefined && this.plugin.settings.custom_theme) {
+				// custom_css = await this.getThemeContent(this.plugin.settings.custom_theme)
+				custom_css = await this.extractCSSblocks(this.plugin.settings.custom_theme)
+			}
 
 		return custom_css
 
@@ -206,7 +204,7 @@ export class ThemeManager {
 	background-color: var(--scrollbar-bg);
 }
 
-.table-container::-webkit-scrollbar-thumb {
+	.table-container::-webkit-scrollbar-thumb {
 	background-color: var(--scrollbar-thumb-bg);
     -webkit-border-radius: var(--radius-l);
     background-clip: padding-box;
@@ -228,7 +226,7 @@ export class ThemeManager {
 	background-color: var(--scrollbar-bg);
 }
 
-.wewrite-article pre::-webkit-scrollbar-thumb {
+	.wewrite-article pre::-webkit-scrollbar-thumb {
 	background-color: var(--scrollbar-thumb-bg);
     -webkit-border-radius: var(--radius-l);
     background-clip: padding-box;
@@ -295,12 +293,12 @@ export class ThemeManager {
 			this.cachedCssKey = cssKey;
 		}
 		// 如果已经应用过相同主题则跳过，减少重复遍历
-		if ((htmlRoot as any).dataset?.wewriteThemeKey === cssKey) {
+		if (htmlRoot.dataset.wewriteThemeKey === cssKey) {
 			return htmlRoot;
 		}
 		const node = this.cssMerger.applyStyleToElement(htmlRoot);
-		(node as any).dataset.wewriteThemeKey = cssKey;
-		return this.cssMerger.applyStyleToElement(htmlRoot);
+		node.dataset.wewriteThemeKey = cssKey;
+		return node;
 
 	}
 }

@@ -2,23 +2,34 @@
  * marked extension for iconize 
  */
 import { MarkedExtension, Tokens } from "marked";
-import { Plugin, sanitizeHTMLToDom } from 'obsidian';
+import { sanitizeHTMLToDom } from 'obsidian';
 import { WeWriteMarkedExtension } from "./extension";
+import { serializeElement } from "src/utils/utils";
+import { $t } from "src/lang/i18n";
 
 const iconsRegex = /:(.*?):/;
 const iconsRegexTokenizer = /^:(.*?):/;
 export class IconizeRender extends WeWriteMarkedExtension {
     iconizeIndex: number = 0;
-    icon: Plugin;
+    icon?: {
+        api?: {
+            getIconByName: (name: string) => { svgElement: string } | undefined;
+        };
+    };
 
-    async prepare() {
+    prepare(): Promise<void> {
         this.iconizeIndex = 0;
-        this.icon = this.plugin.app.plugins.plugins["obsidian-icon-folder"] as Plugin
+        const plugin = this.plugin.app.plugins.plugins["obsidian-icon-folder"];
+        if (plugin && typeof plugin === "object") {
+            this.icon = plugin as { api?: { getIconByName: (name: string) => { svgElement: string } | undefined } };
+        } else {
+            this.icon = undefined;
+        }
+        return Promise.resolve();
     }
 
     getIconByname(iconName: string) {
-        //@ts-ignore
-        return this.icon.api.getIconByName(iconName)
+        return this.icon?.api?.getIconByName(iconName)
     }
     render(iconName: string) {
         const iconObject = this.getIconByname(iconName)
@@ -31,14 +42,16 @@ export class IconizeRender extends WeWriteMarkedExtension {
                     'aria-hidden': 'true',
                 },
             });
-            rootSpan.style.display = 'inline-flex';
-            rootSpan.style.transform = 'translateY(13%)';
+            rootSpan.setCssProps({
+                display: 'inline-flex',
+                transform: 'translateY(13%)',
+            });
             // rootSpan.innerHTML = iconObject.svgElement; 
 
 			rootSpan.appendChild(sanitizeHTMLToDom( iconObject.svgElement))
-            return rootSpan.outerHTML;
+            return serializeElement(rootSpan);
         }
-        return `<span>${iconName}$t('render.render-failed')</span>`
+        return `<span>${iconName}${$t('render.render-failed')}</span>`
     }
 
     markedExtension(): MarkedExtension {
@@ -69,4 +82,3 @@ export class IconizeRender extends WeWriteMarkedExtension {
         }
     }
 }
-

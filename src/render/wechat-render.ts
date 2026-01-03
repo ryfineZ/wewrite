@@ -10,7 +10,7 @@
  */
 
 import matter from "gray-matter";
-import { Marked, Tokens } from "marked";
+import { Marked, Tokens, RendererObject, RendererThis } from "marked";
 import { Component, debounce, sanitizeHTMLToDom } from "obsidian";
 import WeWritePlugin from "src/main";
 import { WechatClient } from "../wechat-api/wechat-client";
@@ -45,17 +45,19 @@ export class WechatRender {
 	private static instance: WechatRender;
 	marked: Marked;
 	previewRender: PreviewRender;
-	delayParse = async (path:string) => {
-		return new Promise<string>(async (resolve, reject) => {
-			setTimeout(async () => {
-				try {
+	delayParse = (path: string) => {
+		return new Promise<string>((resolve, reject) => {
+			setTimeout(() => {
+				void (async () => {
 					const md = await this.plugin.app.vault.adapter.read(path);
 					let html = await this.parse(md);
 					html = await this.postprocess(html);
 					resolve(html);
-				} catch (error) {
-					reject(error);
-				}
+				})().catch((error) => {
+					const reason =
+						error instanceof Error ? error : new Error(String(error));
+					reject(reason);
+				});
 			}, 100);
 		});
 	}
@@ -65,25 +67,26 @@ export class WechatRender {
 		this.client = WechatClient.getInstance(plugin);
 		this.marked = new Marked();
 		this.marked.use(markedOptiones);
-		this.marked.use({
-			renderer: {
-				list(this: any, token: Tokens.List) {
-					let body = '';
-					if (token.items) {
-						for (const item of token.items) {
-							body += this.listitem(item);
-						}
+		const renderer: RendererObject = {
+			list(this: RendererThis, token: Tokens.List) {
+				let body = '';
+				if (token.items) {
+					for (const item of token.items) {
+						body += renderListItem(this.parser, item);
 					}
-					const type = token.ordered ? 'ol' : 'ul';
-					const startatt = (token.ordered && token.start !== 1) ? (' start="' + token.start + '"') : '';
-					return '<' + type + startatt + ' class="list-paddingleft-1">' + body + '</' + type + '>';
-				},
-				listitem(this: any, token: Tokens.ListItem) {
-					const body = token.tokens ? this.parser.parse(token.tokens) : (token.text || '');
-					return `<li><section>${body}</section></li>`;
-				},
-			} as any
-		});
+				}
+				const type = token.ordered ? 'ol' : 'ul';
+				const startatt =
+					token.ordered && token.start !== 1
+						? ` start="${token.start}"`
+						: '';
+				return `<${type}${startatt} class="list-paddingleft-1">${body}</${type}>`;
+			},
+			listitem(this: RendererThis, token: Tokens.ListItem) {
+				return renderListItem(this.parser, token);
+			},
+		};
+		this.marked.use({ renderer });
 		this.useExtensions();
 	}
 	static getInstance(plugin: WeWritePlugin, previewRender: PreviewRender) {
@@ -157,24 +160,26 @@ export class WechatRender {
 	private removeEmptyListItems(html: string) {
 		// WeChat 编辑器会保留空的 <li>，导致空序号，这里统一清理掉仅含换行/空白的条目。
 		const wrapper = document.createElement('div');
-		wrapper.innerHTML = html;
+		const dom = sanitizeHTMLToDom(html);
+		wrapper.appendChild(dom);
 		wrapper.querySelectorAll('ol li, ul li').forEach((li) => {
 			const hasMedia = li.querySelector('img, video, figure');
-			// 彻底清理空白字符、<br> 和空标签
-			const content = li.innerHTML
-				.replace(/<br\s*\/?>/gi, '')
-				.replace(/&nbsp;/gi, '')
+			const clone = li.cloneNode(true) as HTMLElement;
+			clone.querySelectorAll('br').forEach((br) => br.remove());
+			clone.querySelectorAll('span, section, div').forEach((node) => {
+				if ((node.textContent ?? '').trim() === '') {
+					node.remove();
+				}
+			});
+			const textContent = (clone.textContent ?? '')
 				.replace(/\u00A0/g, '')
-				.replace(/<span[^>]*>\s*<\/span>/gi, '')
-				.replace(/<section[^>]*>\s*<\/section>/gi, '')
-				.replace(/<div[^>]*>\s*<\/div>/gi, '')
 				.replace(/[\s\u200B-\u200D]+/g, '')
 				.trim();
-			if (!hasMedia && content === '') {
+			if (!hasMedia && textContent === '') {
 				li.remove();
 			}
 		});
-		return wrapper.innerHTML;
+		return serializeChildren(wrapper);
 	}
 
 	public async parseNote(
@@ -189,4 +194,16 @@ export class WechatRender {
 		html = await this.postprocess(html);
 		return html;
 	}
+}
+
+function renderListItem(parser: RendererThis["parser"], token: Tokens.ListItem) {
+	const body = token.tokens ? parser.parse(token.tokens) : (token.text || '');
+	return `<li><section>${body}</section></li>`;
+}
+
+function serializeChildren(wrapper: HTMLElement): string {
+	const serializer = new XMLSerializer();
+	return Array.from(wrapper.childNodes)
+		.map((node) => serializer.serializeToString(node))
+		.join('');
 }

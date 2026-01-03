@@ -82,9 +82,6 @@ export class ResourceManager {
         return null
     }
 
-    public async renderMarkdown(path: string) {
-
-    }
     public async saveImageFromUrl(url: string): Promise<string | null> {
         const currentFile = this.plugin.app.workspace.getActiveFile();
         if (!currentFile) return null;

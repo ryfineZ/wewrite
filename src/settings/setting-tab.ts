@@ -73,7 +73,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	async display(): Promise<void> {
+	display(): void {
 		const { containerEl } = this;
 
 		containerEl.empty();
@@ -90,7 +90,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 				button
 					.setIcon("upload")
 					.setTooltip($t("settings.import-account-info"))
-					.onClick(async () => {
+					.onClick(() => {
 						this.importSettings();
 					});
 			})
@@ -98,8 +98,8 @@ export class WeWriteSettingTab extends PluginSettingTab {
 				button
 					.setIcon("download")
 					.setTooltip($t("settings.export-account-info"))
-					.onClick(async () => {
-						this.exportSettings();
+					.onClick(() => {
+						void this.exportSettings();
 					});
 			});
 	}
@@ -115,7 +115,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 					.slice(0, 10)}.json`,
 				types: [
 					{
-						description: "JSON Files",
+						description: "JSON 文件",
 						accept: { "application/json": [".json"] },
 					},
 				],
@@ -129,66 +129,75 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			new Notice($t("settings.settings-exported"));
 			return true;
 		} catch (error) {
-			if (error.name === "AbortError") {
+			if (error instanceof DOMException && error.name === "AbortError") {
 				// User canceled the save dialog
 				return false;
 			}
-			new Notice($t("settings.settings-exporting-failed") + error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			new Notice($t("settings.settings-exporting-failed") + errorMessage);
 			console.error(error);
 			return false;
 		}
 	}
 
-	async importSettings() {
+	importSettings() {
 		try {
 			// Create file input
 			const input = document.createElement("input");
 			input.type = "file";
 			input.accept = ".json";
 
-			input.onchange = async (e) => {
+			input.onchange = (e) => {
 				const file = (e.target as HTMLInputElement).files?.[0];
 				if (!file) return;
 
 				const reader = new FileReader();
-				reader.onload = async (e) => {
-					try {
-						const content = e.target?.result as string;
-						let importedData: WeWriteSetting;
-
-						// Validate JSON structure
+				reader.onload = (loadEvent) => {
+					(() => {
 						try {
-							importedData = JSON.parse(content);
-						} catch (error) {
-							new Notice($t("settings.invalid-json-file"));
-							return;
-						}
+							const content = loadEvent.target?.result as string;
+							let importedData: WeWriteSetting;
 
-						// Validate account data structure
-						const { mpAccounts, css_styles_folder } = importedData;
-						if (
-							mpAccounts === undefined ||
-							css_styles_folder === undefined
-						) {
+							// Validate JSON structure
+							try {
+								importedData = JSON.parse(content);
+							} catch (parseError) {
+								new Notice($t("settings.invalid-json-file"));
+								return;
+							}
+
+							// Validate account data structure
+							const { mpAccounts, css_styles_folder } = importedData;
+							if (
+								mpAccounts === undefined ||
+								css_styles_folder === undefined
+							) {
+								new Notice(
+									$t("settings.invalid-wewerite-settings-file")
+								);
+								return;
+							}
+							this.plugin.settings = importedData;
+							// save it
+							void this.plugin.saveSettings();
+							this.updateMPAccountOptions();
+							this.display();
 							new Notice(
-								$t("settings.invalid-wewerite-settings-file")
+								$t("settings.settings-imported-successfully")
 							);
-							return;
+						} catch (error) {
+							const errorMessage =
+								error instanceof Error
+									? error.message
+									: String(error);
+							new Notice(
+								$t("settings.settings-imported-failed") +
+									errorMessage
+							);
+							console.error(error);
 						}
-						this.plugin.settings = importedData;
-						// save it
-						await this.plugin.saveSettings();
-						this.updateMPAccountOptions();
-						this.display();
-						new Notice(
-							$t("settings.settings-imported-successfully")
-						);
-					} catch (error) {
-						new Notice(
-							$t("settings.settings-imported-failed") + error
-						);
-						console.error(error);
-					}
+					})();
 				};
 
 				reader.readAsText(file);
@@ -196,7 +205,9 @@ export class WeWriteSettingTab extends PluginSettingTab {
 
 			input.click();
 		} catch (error) {
-			new Notice($t("settings.settings-imported-error") + error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			new Notice($t("settings.settings-imported-error") + errorMessage);
 			console.error(error);
 		}
 	}
@@ -204,7 +215,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 	creatCSSStyleSetting(container: HTMLElement) {
 		const frame = container.createDiv({ cls: "wewrite-setting-frame" });
 
-		new Setting(frame).setName($t('settings.custom-themes')).setHeading();
+		new Setting(frame).setName($t("settings.custom-themes")).setHeading();
 
 		new Setting(frame)
 			.setName($t("settings.custom-themes-folder"))
@@ -215,7 +226,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.css_styles_folder)
 					.onChange((new_folder) => {
 						this.plugin.settings.css_styles_folder = new_folder;
-						this.plugin.saveThemeFolderDebounce();
+						void this.plugin.saveThemeFolderDebounce();
 					});
 			})
 			.addExtraButton((button) => {
@@ -224,8 +235,10 @@ export class WeWriteSettingTab extends PluginSettingTab {
 					.setTooltip(
 						$t("views.theme-manager.download-predefined-custom-themes")
 					)
-					.onClick(async () => {
-						ThemeManager.getInstance(this.plugin).downloadThemes();
+					.onClick(() => {
+						void ThemeManager.getInstance(
+							this.plugin
+						).downloadThemes();
 					});
 			});
 	}
@@ -259,7 +272,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 		});
 		this.plugin.settings.selectedMPAccount = newAccount.accountName;
 		this.mpAccountDropdown.setValue(newName);
-		
+
 		this.updateMPAccountSettings(newName, this.mpAccountContainer);
 	}
 	updateMPAccountSettings(
@@ -281,22 +294,22 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.setDesc($t("settings.account-name-for-your-wechat-official"))
 			.setClass("wewrite-setting-input")
 			.addText((text) =>
-				text.setValue(account.accountName).onChange(async (value) => {
+				text.setValue(account.accountName).onChange((value) => {
 					account.accountName = value;
 					this.plugin.settings.selectedMPAccount = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 					this.updateMPAccountOptions();
 				})
 			);
 		//addId
 		new Setting(container)
-			.setName("AppId")
+			.setName($t("settings.app-id"))
 			.setDesc($t("settings.appid-for-your-wechat-official-account"))
 			.setClass("wewrite-setting-input")
 			.addText((text) =>
-				text.setValue(account.appId).onChange(async (value) => {
+				text.setValue(account.appId).onChange((value) => {
 					account.appId = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				})
 			);
 
@@ -306,34 +319,36 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.setDesc($t("settings.app-secret-for-your-wechat-official"))
 			.setClass("wewrite-setting-input")
 			.addText((text) =>
-				text.setValue(account.appSecret).onChange(async (value) => {
+				text.setValue(account.appSecret).onChange((value) => {
 					account.appSecret = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				})
 			);
 		// refresh token
 		new Setting(container)
 			.setName($t("settings.test-connection"))
 			.setDesc($t("settings.check-if-your-account-setting-is-correct"))
-			.addExtraButton(async (button) => {
+			.addExtraButton((button) => {
 				button
 					.setTooltip($t("settings.click-to-connect-wechat-server"))
 					.setIcon("plug-zap");
-				button.onClick(async () => {
-					const success = await this.plugin.TestAccessToken(
-						account.accountName
-					);
-					if (success) {
-						new Notice(
-							$t(
-								"settings.successfully-connected-to-wechat-server"
-							)
+				button.onClick(() => {
+					void (async () => {
+						const success = await this.plugin.TestAccessToken(
+							account.accountName
 						);
-					} else {
-						new Notice(
-							$t("settings.failed-to-connect-to-wechat-server")
-						); // 添加错误提示
-					}
+						if (success) {
+							new Notice(
+								$t(
+									"settings.successfully-connected-to-wechat-server"
+								)
+							);
+						} else {
+							new Notice(
+								$t("settings.failed-to-connect-to-wechat-server")
+							); // 添加错误提示
+						}
+					})();
 				});
 			});
 
@@ -342,11 +357,11 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.setName($t("settings.delete-account"))
 			.setDesc($t("settings.be-carefull-delete-account"))
 			.setClass("danger-extra-button")
-			.addExtraButton(async (button) => {
+			.addExtraButton((button) => {
 				button
 					.setTooltip($t("settings.delete-account"))
 					.setIcon("trash-2");
-				button.onClick(async () => {
+				button.onClick(() => {
 					const accountToDelete =
 						this.plugin.settings.selectedMPAccount;
 					this.plugin.settings.mpAccounts =
@@ -354,7 +369,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 							(account) => account.accountName !== accountToDelete
 						);
 					const account = this.plugin.settings.mpAccounts[0];
-					
+
 					if (account !== undefined) {
 						this.plugin.settings.selectedMPAccount =
 							account.accountName;
@@ -366,7 +381,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 					} else {
 						this.newMPAccountInfo();
 					}
-					this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 			});
 	}
@@ -382,20 +397,19 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			this.plugin.settings.selectedMPAccount ?? ""
 		);
 	}
-	
+
 	createAiChatSettings(container: HTMLElement) {
 		const frame = container.createDiv({ cls: "wewrite-setting-frame" });
-		
-		new Setting(frame).setName($t('settings.text-llm')).setHeading();
+		new Setting(frame).setName($t("settings.text-llm")).setHeading();
 
-		const  selectAiChatSetting = new Setting(frame)
+		const selectAiChatSetting = new Setting(frame)
 			.setName($t("settings.select-account"))
-			.setDesc($t("settings.choose-the-llm-account-to-modify"))
-			
+			.setDesc($t("settings.choose-the-llm-account-to-modify"));
+
 		this.aiChatAccountContainer = frame.createDiv({
 			cls: "wewrite-account-info-content",
 		});
-	
+
 		selectAiChatSetting.addDropdown((dropdown) => {
 			this.aiChatAccountDropdown = dropdown;
 			dropdown.selectEl.empty();
@@ -407,23 +421,23 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			});
 			dropdown
 				.setValue(this.plugin.settings.selectedChatAccount || "")
-				.onChange(async (value) => {
+				.onChange((value) => {
 					this.plugin.settings.selectedChatAccount = value;
 					this.updateAIChatSettings(
 						value,
 						this.aiChatAccountContainer
 					);
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 		})
-		.addExtraButton((button) => {
-			button
-				.setIcon("plus")
-				.setTooltip($t("settings.create-new-chat-llm-account"))
-				.onClick(async () => {
-					this.newAIChatAccount();
-				});
-		});
+			.addExtraButton((button) => {
+				button
+					.setIcon("plus")
+					.setTooltip($t("settings.create-new-chat-llm-account"))
+					.onClick(() => {
+						this.newAIChatAccount();
+					});
+			});
 		this.updateAIChatSettings(
 			this.plugin.settings.selectedChatAccount,
 			this.aiChatAccountContainer
@@ -444,35 +458,41 @@ export class WeWriteSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName($t("settings.account-name"))
 			.addText((text) =>
-				text.setValue(account.accountName).onChange(async (value) => {
+				text.setValue(account.accountName).onChange((value) => {
 					value = value.trim();
 					if (value !== account.accountName) {
 						account.accountName = value;
 						this.plugin.settings.selectedChatAccount = value;
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 						this.updateAIChatOptions();
 					}
 				})
 			);
 
-		new Setting(container).setName("base_url").addText((text) =>
-			text.setValue(account.baseUrl).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-access-base-url"))
+			.addText((text) =>
+			text.setValue(account.baseUrl).onChange((value) => {
 				account.baseUrl = value;
-				await this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 			})
 		);
 
-		new Setting(container).setName("api_key").addText((text) =>
-			text.setValue(account.apiKey).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-access-api-key"))
+			.addText((text) =>
+			text.setValue(account.apiKey).onChange((value) => {
 				account.apiKey = value;
-				await this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 			})
 		);
 
-		new Setting(container).setName("model").addText((text) =>
-			text.setValue(account.model).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-model-to-be-used"))
+			.addText((text) =>
+			text.setValue(account.model).onChange((value) => {
 				account.model = value;
-				await this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 			})
 		);
 
@@ -480,7 +500,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.setName($t("settings.delete-account"))
 			.setClass("danger-extra-button")
 			.addExtraButton((button) => {
-				button.setIcon("trash-2").onClick(async () => {
+				button.setIcon("trash-2").onClick(() => {
 					const accountToDelete =
 						this.plugin.settings.selectedChatAccount;
 					this.plugin.settings.chatAccounts =
@@ -488,17 +508,17 @@ export class WeWriteSettingTab extends PluginSettingTab {
 							(a) => a.accountName !== accountToDelete
 						);
 					const account = this.plugin.settings.chatAccounts[0];
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 					if (account !== undefined) {
 						this.plugin.settings.selectedChatAccount =
-						account.accountName;
+							account.accountName;
 						this.updateAIChatOptions();
 						this.updateAIChatSettings(
 							account.accountName,
 							this.aiChatAccountContainer
 						);
-						await this.plugin.saveSettings();
-					}else{
+						void this.plugin.saveSettings();
+					} else {
 						this.newAIChatAccount();
 					}
 				});
@@ -604,12 +624,12 @@ export class WeWriteSettingTab extends PluginSettingTab {
 
 		const selectAIDrawSetting = new Setting(frame)
 			.setName($t("settings.select-account"))
-			.setDesc($t("settings.choose-the-llm-account-to-modify"))
-			
+			.setDesc($t("settings.choose-the-llm-account-to-modify"));
+
 		this.aiDrawAccountContainer = frame.createDiv({
 			cls: "wewrite-account-info-content",
 		});
-		
+
 		selectAIDrawSetting.addDropdown((dropdown) => {
 			this.aiDrawAccountDropdown = dropdown;
 			dropdown.selectEl.empty();
@@ -621,23 +641,23 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			});
 			dropdown
 				.setValue(this.plugin.settings.selectedDrawAccount || "")
-				.onChange(async (value) => {
+				.onChange((value) => {
 					this.plugin.settings.selectedDrawAccount = value;
 					this.updateAiDrawSettings(
 						value,
 						this.aiDrawAccountContainer
 					);
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				});
 		})
-		.addExtraButton((button) => {
-			button
-				.setIcon("plus")
-				.setTooltip($t("settings.create-new-draw-llm-account"))
-				.onClick(async () => {
-					this.newAiDrawAccount();
-				});
-		});
+			.addExtraButton((button) => {
+				button
+					.setIcon("plus")
+					.setTooltip($t("settings.create-new-draw-llm-account"))
+					.onClick(() => {
+						this.newAiDrawAccount();
+					});
+			});
 		this.updateAiDrawSettings(
 			this.plugin.settings.selectedDrawAccount,
 			this.aiDrawAccountContainer
@@ -660,48 +680,56 @@ export class WeWriteSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName($t("settings.account-name"))
 			.addText((text) =>
-				text.setValue(account.accountName).onChange(async (value) => {
+				text.setValue(account.accountName).onChange((value) => {
 					value = value.trim();
 					if (value.trim() !== account.accountName) {
 						account.accountName = value.trim();
 						this.plugin.settings.selectedDrawAccount = value;
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 						this.updateAIDrawOptions();
 					}
 				})
 			);
 
-		new Setting(container).setName("base_url").addText((text) =>
-			text.setValue(account.baseUrl).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-access-base-url"))
+			.addText((text) =>
+			text.setValue(account.baseUrl).onChange((value) => {
 				if (value.trim() !== account.baseUrl) {
 					account.baseUrl = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			})
 		);
-		new Setting(container).setName("task_url").addText((text) =>
-			text.setValue(account.taskUrl).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-task-url"))
+			.addText((text) =>
+			text.setValue(account.taskUrl).onChange((value) => {
 				if (value.trim() !== account.taskUrl) {
 					account.taskUrl = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			})
 		);
 
-		new Setting(container).setName("api_key").addText((text) =>
-			text.setValue(account.apiKey).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-access-api-key"))
+			.addText((text) =>
+			text.setValue(account.apiKey).onChange((value) => {
 				if (value.trim() !== account.apiKey) {
 					account.apiKey = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			})
 		);
 
-		new Setting(container).setName("model").addText((text) =>
-			text.setValue(account.model).onChange(async (value) => {
+		new Setting(container)
+			.setName($t("settings.llm-model-to-be-used"))
+			.addText((text) =>
+			text.setValue(account.model).onChange((value) => {
 				if (value.trim() !== account.model) {
 					account.model = value;
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			})
 		);
@@ -710,7 +738,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.setName($t("settings.delete-account"))
 			.setClass("danger-extra-button")
 			.addExtraButton((button) => {
-				button.setIcon("trash-2").onClick(async () => {
+				button.setIcon("trash-2").onClick(() => {
 					const accountToDelete =
 						this.plugin.settings.selectedDrawAccount;
 					this.plugin.settings.drawAccounts =
@@ -718,7 +746,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 							(a) => a.accountName !== accountToDelete
 						);
 					const account = this.plugin.settings.drawAccounts[0];
-					await this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 					if (account !== undefined) {
 						this.plugin.settings.selectedDrawAccount =
 							account.accountName;
@@ -727,8 +755,8 @@ export class WeWriteSettingTab extends PluginSettingTab {
 							account.accountName,
 							this.aiDrawAccountContainer
 						);
-						await this.plugin.saveSettings();
-					}else{
+						void this.plugin.saveSettings();
+					} else {
 						this.newAiDrawAccount();
 					}
 				});
@@ -738,7 +766,7 @@ export class WeWriteSettingTab extends PluginSettingTab {
 	createWeChatSettings(container: HTMLElement) {
 		const mpFrame = container.createDiv({ cls: "wewrite-setting-frame" });
 		new Setting(mpFrame).setName($t("settings.wechat-account")).setHeading();
-		
+
 		// mpFrame.createEl("hr");
 
 		const ip = new Setting(mpFrame)
@@ -746,27 +774,38 @@ export class WeWriteSettingTab extends PluginSettingTab {
 				$t("settings.public-ip-address") +
 					": " +
 					// this.plugin.settings.ipAddress
-					$t('settings.fetching')
+					$t("settings.fetching")
 			)
 			.setHeading()
 			.setDesc($t("settings.you-should-add-this-ip-to-ip-whitelist-o"));
 
-		this.plugin.updateIpAddress().then((ipAddress) => {
-			console.info("ipAddress: " + ipAddress);
-			ip.setName($t("settings.public-ip-address") + ": " + ipAddress);
-		}).catch((error) => {
-			ip.setName($t("settings.public-ip-address") + ": " + $t("settings.no-ip-address"));
-		});
+		void this.plugin
+			.updateIpAddress()
+			.then((ipAddress) => {
+				console.debug("ipAddress: " + ipAddress);
+				ip.setName(
+					$t("settings.public-ip-address") + ": " + ipAddress
+				);
+			})
+			.catch(() => {
+				ip.setName(
+					$t("settings.public-ip-address") +
+						": " +
+						$t("settings.no-ip-address")
+				);
+			});
 
 		ip.addExtraButton((button) => {
 			button
 				.setIcon("clipboard-copy")
 				.setTooltip($t("settings.copy-ip-to-clipboard"))
-				.onClick(async () => {
-					await navigator.clipboard.writeText(
-						this.plugin.settings.ipAddress ?? ""
-					);
-					new Notice($t("settings.ip-copied-to-clipboard"));
+				.onClick(() => {
+					void (async () => {
+						await navigator.clipboard.writeText(
+							this.plugin.settings.ipAddress ?? ""
+						);
+						new Notice($t("settings.ip-copied-to-clipboard"));
+					})();
 				});
 		});
 
@@ -776,9 +815,9 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle
 					.setValue(this.plugin.settings.useCenterToken)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.useCenterToken = value;
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					});
 			});
 		new Setting(mpFrame)
@@ -787,9 +826,9 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle
 					.setValue(this.plugin.settings.realTimeRender)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.realTimeRender = value;
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					});
 			});
 
@@ -812,8 +851,8 @@ export class WeWriteSettingTab extends PluginSettingTab {
 		const selectAccountSetting = new Setting(mpFrame)
 			.setName($t("settings.select-account"))
 			.setHeading()
-			.setDesc($t("settings.choose-the-account-to-modify"))
-			
+			.setDesc($t("settings.choose-the-account-to-modify"));
+
 		const frame = mpFrame.createDiv({ cls: "wewrite-account-info-div" });
 		const title = frame.createEl("div", {
 			cls: "wewrite-account-info-title",
@@ -827,16 +866,16 @@ export class WeWriteSettingTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setValue(this.plugin.settings.previewer_wxname || "")
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.previewer_wxname = value;
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 
 		this.mpAccountContainer = frame.createDiv({
 			cls: "wewrite-account-info-content",
 		});
-		
+
 		selectAccountSetting
 			.addDropdown((dropdown) => {
 				dropdown.selectEl.empty();
@@ -856,13 +895,13 @@ export class WeWriteSettingTab extends PluginSettingTab {
 						this.plugin.settings.selectedMPAccount ??
 							$t("settings.select-account")
 					)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.selectedMPAccount = value;
 						this.updateMPAccountSettings(
 							this.plugin.settings.selectedMPAccount,
 							this.mpAccountContainer
 						);
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 						this.plugin.messageService.sendMessage(
 							"wechat-account-changed",
 							value
@@ -873,15 +912,13 @@ export class WeWriteSettingTab extends PluginSettingTab {
 				button
 					.setIcon("plus")
 					.setTooltip($t("settings.create-new-account"))
-					.onClick(async () => {
+					.onClick(() => {
 						this.newMPAccountInfo();
 					});
 			});
-			this.updateMPAccountSettings(
-				this.mpAccountDropdown.getValue(),
-				this.mpAccountContainer
-			);
-	
-		
+		this.updateMPAccountSettings(
+			this.mpAccountDropdown.getValue(),
+			this.mpAccountContainer
+		);
 	}
 }

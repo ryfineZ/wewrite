@@ -76,11 +76,11 @@ export class ProofService {
 
     private setupEventListeners() {
         const dom = this.editorView.dom;
-        dom.addEventListener('mouseover', this.handleMouseOver.bind(this));
-        dom.addEventListener('mouseout', this.handleMouseOut.bind(this));
+        dom.addEventListener('mouseover', this.handleMouseOver);
+        dom.addEventListener('mouseout', this.handleMouseOut);
     }
 
-    private handleMouseOver(e: MouseEvent) {
+    private handleMouseOver = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
         if (target.classList.contains('proof-underline')) {
             const proofId = parseInt(target.getAttribute('data-proof-id') || '-1');
@@ -90,7 +90,7 @@ export class ProofService {
         }
     }
 
-    private handleMouseOut(e: MouseEvent) {
+    private handleMouseOut = (e: MouseEvent) => {
         const relatedTarget = e.relatedTarget as HTMLElement;
         const tooltip = this.tooltip;
         
@@ -157,9 +157,11 @@ export class ProofService {
             left = window.innerWidth - tooltipWidth - 5;
         }
         
-        this.tooltip.style.position = 'fixed';
-        this.tooltip.style.top = `${top}px`;
-        this.tooltip.style.left = `${left}px`;
+        this.tooltip.setCssProps({
+            position: 'fixed',
+            top: `${top}px`,
+            left: `${left}px`,
+        });
 
         this.tooltip.addEventListener('mouseenter', () => {
             if (this.hideTimeoutId) {

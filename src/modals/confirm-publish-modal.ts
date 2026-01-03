@@ -12,7 +12,7 @@ export class ConfirmPublishModal extends Modal {
     plugin: WeWritePlugin;
     media_id: string;
     title: string
-    draftItem: any;
+    draftItem: DraftItem;
     constructor(plugin: WeWritePlugin, draftItem: DraftItem) {
         super(plugin.app);
         this.plugin = plugin;
@@ -57,7 +57,7 @@ export class ConfirmPublishModal extends Modal {
                 .then(() => {
                     new Notice($t('modals.publish.success'));
                 })
-                .catch((error: any) => {
+                .catch((error: unknown) => {
                     new Notice($t('modals.publish.failed'));
                 })
         }

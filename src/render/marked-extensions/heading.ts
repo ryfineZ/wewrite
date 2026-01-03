@@ -7,9 +7,10 @@
 import { Tokens, MarkedExtension } from "marked";
 import { WeWriteMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
+import { serializeChildren } from "src/utils/utils";
 
 export class Heading extends WeWriteMarkedExtension {
-	async postprocess(html: string) {
+	postprocess(html: string): Promise<string> {
 		const dom = sanitizeHTMLToDom(html)
 		const tempDiv = createEl('div');
 		tempDiv.appendChild(dom);
@@ -22,7 +23,7 @@ export class Heading extends WeWriteMarkedExtension {
 			const leaf = outbox.createSpan({ text: text ? text : "", cls: 'wewrite-heading-leaf' })
 			heading.createSpan({ cls: 'wewrite-heading-tail' })
 		}
-		return tempDiv.innerHTML
+		return Promise.resolve(serializeChildren(tempDiv))
 
 	}
 

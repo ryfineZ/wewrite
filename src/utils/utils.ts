@@ -1,19 +1,21 @@
 import { requestUrl } from "obsidian";
 
-export function areObjectsEqual(obj1: any, obj2: any): boolean {
+export function areObjectsEqual(obj1: unknown, obj2: unknown): boolean {
     if (obj1 === obj2) return true;
 
     if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
         return false;
     }
 
-    const keys1 = Object.keys(obj1);
-    const keys2 = Object.keys(obj2);
+    const keys1 = Object.keys(obj1 as Record<string, unknown>);
+    const keys2 = Object.keys(obj2 as Record<string, unknown>);
 
     if (keys1.length !== keys2.length) return false;
 
     for (const key of keys1) {
-        if (!keys2.includes(key) || !areObjectsEqual(obj1[key], obj2[key])) {
+        const obj1Record = obj1 as Record<string, unknown>;
+        const obj2Record = obj2 as Record<string, unknown>;
+        if (!keys2.includes(key) || !areObjectsEqual(obj1Record[key], obj2Record[key])) {
             return false;
         }
     }
@@ -21,40 +23,57 @@ export function areObjectsEqual(obj1: any, obj2: any): boolean {
     return true;
 }
 
-export function fetchImageBlob(url: string): Promise<Blob> {
-    return new Promise(async (resolve, reject) => {
-        if (!url) {
-            console.error(`Invalid URL: ${url}`);
-            return;
+export async function fetchImageBlob(url: string): Promise<Blob> {
+    if (!url) {
+        throw new Error(`Invalid URL: ${url}`);
+    }
+
+    if (url.startsWith('data:')) {
+        return dataUrlToBlob(url);
+    }
+
+    try {
+        const response = await requestUrl(url);
+        if (!response.arrayBuffer) {
+            throw new Error(`Failed to fetch image from ${url}`);
         }
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-
-
-            try {
-                const response = await requestUrl(url);
-                if (!response.arrayBuffer) {
-                    console.error(`Failed to fetch image from ${url}`);
-                    return;
-                }
-                const blob = new Blob([response.arrayBuffer]);
-                resolve(blob);
-            } catch (error) {
-                console.error(`Error fetching image from ${url}:`, error);
-                return;
-            }
-        } else {
-            const blob = await fetch(url).then(response => response.blob());
-            resolve(blob);
-
-        }
-
-    });
+        return new Blob([response.arrayBuffer]);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Error fetching image from ${url}: ${message}`);
+    }
 }
 
-export function replaceDivWithSection(root: HTMLElement){
-    let html = root.outerHTML.replaceAll(/<div /g, '<section ').replaceAll(/<\/div>/g, '</section>');
-    return html;
+function dataUrlToBlob(dataUrl: string): Blob {
+    const [header, data] = dataUrl.split(',');
+    const match = header.match(/data:(.*?);base64/);
+    const mime = match ? match[1] : 'application/octet-stream';
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+}
 
+export function serializeElement(element: Element): string {
+    return new XMLSerializer().serializeToString(element);
+}
+
+export function serializeChildren(element: Element): string {
+    const serializer = new XMLSerializer();
+    let result = "";
+    element.childNodes.forEach((child) => {
+        result += serializer.serializeToString(child);
+    });
+    return result;
+}
+
+export function replaceDivWithSection(root: HTMLElement) {
+    const html = serializeElement(root)
+        .replaceAll(/<div /g, "<section ")
+        .replaceAll(/<\/div>/g, "</section>");
+    return html;
 }
 
 export function removeThinkTags(content: string): string {

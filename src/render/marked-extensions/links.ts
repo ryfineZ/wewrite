@@ -11,20 +11,23 @@ import { WeWriteMarkedExtension } from "./extension";
 export class Links extends WeWriteMarkedExtension {
 
     allLinks: string[] = [];
-    async prepare() {
+    prepare(): Promise<void> {
         this.allLinks = [];
+        return Promise.resolve();
     }
 
-    async postprocess(html: string) {
+    postprocess(html: string): Promise<string> {
         if (!this.allLinks.length) {
-            return html;
+            return Promise.resolve(html);
         }
         // 去重但保持顺序
         const uniqueLinks = [...new Set(this.allLinks)];
         const links = uniqueLinks.map((href, i) => {
             return `<li>${href}&nbsp;↩</li>`;
         });
-        return `${html}<section class="foot-links"><hr class="foot-links-separator"><ol>${links.join('')}</ol></section>`;
+        return Promise.resolve(
+            `${html}<section class="foot-links"><hr class="foot-links-separator"><ol>${links.join('')}</ol></section>`
+        );
     }
 
     markedExtension(): MarkedExtension {

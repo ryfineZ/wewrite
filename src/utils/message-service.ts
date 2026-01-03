@@ -41,23 +41,25 @@ export type MSG_TYPE  =
 
   
 
+export type MessagePayload = SrcThumbList | null | Record<string, unknown> | string;
+
 export class MessageService {
-    private listeners: Map<string, ((data: SrcThumbList | null | any) => void)[]> = new Map();
+    private listeners: Map<string, ((data: MessagePayload) => void)[]> = new Map();
   
-    registerListener(msg:MSG_TYPE, listener: ( data: SrcThumbList | null | any) => void) {
+    registerListener<T extends MessagePayload>(msg: MSG_TYPE, listener: (data: T) => void) {
       const listeners = this.listeners.get(msg)
       if (listeners == undefined || listeners === null) {
-        this.listeners.set(msg, [listener]);
-      }else{
-        listeners.push(listener);
+        this.listeners.set(msg, [listener as (data: MessagePayload) => void]);
+      } else {
+        listeners.push(listener as (data: MessagePayload) => void);
       }
     }
   
-    sendMessage(msg:MSG_TYPE, data: SrcThumbList | null | any) {
+    sendMessage<T extends MessagePayload>(msg: MSG_TYPE, data: T) {
       const listeners = this.listeners.get(msg)
       if (listeners == undefined || listeners === null) {
         return;
-      }else{
+      } else {
         listeners.forEach(listener => listener(data));
       }
     }

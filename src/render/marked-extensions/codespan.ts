@@ -48,8 +48,7 @@ export class CodespanRenderer extends WeWriteMarkedExtension {
 				},
 			}
 			],
-			async: true,
-			walkTokens: async (token: Tokens.Generic) => {
+			walkTokens: (token: Tokens.Generic) => {
 				if (token.type === 'codespan') {
 					token.html = this.codespanRenderer(token.text);
 				}
@@ -57,4 +56,3 @@ export class CodespanRenderer extends WeWriteMarkedExtension {
 		}
 	}
 }
-

@@ -8,13 +8,15 @@
 import { Tokens, MarkedExtension } from "marked";
 import { WeWriteMarkedExtension } from "./extension";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
+import { serializeElement } from "src/utils/utils";
 
 
 export class Table extends WeWriteMarkedExtension {
 
     tableIndex = 0;
-    async prepare(){
+    prepare(): Promise<void> {
         this.tableIndex = 0;
+        return Promise.resolve();
     }
     markedExtension(): MarkedExtension {
         return {
@@ -28,7 +30,7 @@ export class Table extends WeWriteMarkedExtension {
                             return '<section class="table-container"><p>Table content not found</p><section>';
                         }
                         this.tableIndex++;
-                        return `<section class="table-container">${root.outerHTML}</section>`;
+                        return `<section class="table-container">${serializeElement(root)}</section>`;
                     }
                 }
             ]

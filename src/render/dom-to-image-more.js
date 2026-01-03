@@ -1,5 +1,5 @@
 (function (global) {
-  ('use strict');
+  'use strict';
 
   const util = newUtil();
   const inliner = newInliner();
@@ -66,9 +66,9 @@
   /**
      * @param {Node} node - The DOM Node object to render
      * @param {Object} options - Rendering options
-     * @param {Function} options.filter - Should return true if passed node should be included in the output
+     * @param {(node: Node) => boolean} options.filter - Should return true if passed node should be included in the output
      *          (excluding node means excluding it's children as well). Not called on the root node.
-     * @param {Function} options.onclone - Callback function which is called when the Document has been cloned for
+     * @param {(document: Document) => void} options.onclone - Callback function which is called when the Document has been cloned for
      *         rendering, can be used to modify the contents that will be rendered without affecting the original
      *         source document.
      * @param {String} options.bgcolor - color for the background, any valid CSS color value.
@@ -87,7 +87,7 @@
      *         - @param {Enumerator} method - get, post
      *         - @param {Object} headers - eg: { "Content-Type", "application/json;charset=UTF-8" }
      *         - @param {Object} data - post payload
-     * @param {Function} options.requestUrl - override request to resolve cors promblems
+     * @param {(options: { url: string, method: string }) => Promise<{ arrayBuffer: ArrayBuffer, headers: Object }>} options.requestUrl - override request to resolve cors promblems
      * @param {string} options.type - use for toBlob, define the image format of blob
      * @return {Promise} - A promise that is fulfilled with a SVG image data URL
      * */
@@ -453,29 +453,23 @@
 
               for (const property of ['left', 'right', 'top', 'bottom']) {
                 if (targetElement.style.getPropertyValue(property)) {
-                  targetElement.style.setProperty(property, '0px');
+                  targetElement.style[property] = '0px';
                 }
               }
             }
 
-            const propertyName = '-webkit-background-clip';
-            const propertyValue = sourceComputedStyles.getPropertyValue(propertyName);
-            if (propertyValue !== 'border-box') {
-              const styleElement = document.createElement('style');
-              const className = util.uid();
-              const currentClass = targetElement.getAttribute('class') || '';
-              targetElement.setAttribute('class', `${currentClass} ${className}`);
-              styleElement.append(document.createTextNode(`.${className}{${propertyName}: ${propertyValue};}`));
-              targetElement.prepend(styleElement);
-
+            const propertyName = 'background-clip';
+            const propertyValue
+              = sourceComputedStyles.getPropertyValue(`-webkit-${propertyName}`)
+              || sourceComputedStyles.getPropertyValue(propertyName);
+            if (propertyValue && propertyValue !== 'border-box') {
+              setStyleProperty(targetElement.style, propertyName, propertyValue);
             }
           }
         }
       }
 
       function clonePseudoElements() {
-        const cloneClassName = util.uid();
-
         for (const element of [':before', ':after']) {
           clonePseudoElement(element);
         }
@@ -483,60 +477,51 @@
         function clonePseudoElement(element) {
           const style = getComputedStyle(original, element);
           const content = style.getPropertyValue('content');
+          const contentValue = normalizePseudoContent(content);
 
-          if (content === '' || content === 'none') {
+          if (!contentValue) {
             return;
           }
 
-          const currentClass = clone.getAttribute('class') || '';
-          clone.setAttribute('class', `${currentClass} ${cloneClassName}`);
+          const pseudoElement = document.createElement('span');
+          pseudoElement.style.cssText = style.cssText || '';
 
-          const styleElement = document.createElement('style');
-          styleElement.append(formatPseudoElementStyle());
-          clone.append(styleElement);
-
-          function formatPseudoElementStyle() {
-            const selector = `.${cloneClassName}:${element}`;
-            const cssText = style.cssText
-              ? formatCssText()
-              : formatCssProperties();
-
-            return document.createTextNode(`${selector}{${cssText}}`);
-
-            function formatCssText() {
-              return `${style.cssText} content: ${content};`;
-            }
-
-            function formatCssProperties() {
-              const styleText = fixPseudoStyle(util.asArray(style))
-                .map(formatProperty)
-                .join('; ');
-              return `${styleText};`;
-
-              function fixPseudoStyle(properties) {
-                for (let name of ['counter-increment', 'counter-reset', 'counter-set']) {
-                  if (properties.indexOf(name) < 0 && !isUndefined(style.getPropertyValue(name))) {
-                    properties.push(name);
-                  }
-                }
-                return properties;
-              }
-
-              function formatProperty(name) {
-                const propertyValue = style.getPropertyValue(name);
-                const propertyPriority = style.getPropertyPriority(name)
-                  ? ' !important'
-                  : '';
-                return `${name}: ${propertyValue}${propertyPriority}`;
-              }
-            }
+          if (contentValue.type === 'url') {
+            const image = document.createElement('img');
+            image.src = contentValue.value;
+            pseudoElement.append(image);
+          } else if (contentValue.value) {
+            pseudoElement.textContent = contentValue.value;
           }
+
+          if (element === ':before') {
+            clone.prepend(pseudoElement);
+          } else {
+            clone.append(pseudoElement);
+          }
+        }
+
+        function normalizePseudoContent(content) {
+          if (!content) {
+            return null;
+          }
+          const trimmed = content.trim();
+          if (trimmed === '' || trimmed === 'none' || trimmed === 'normal') {
+            return null;
+          }
+          const urlMatch = trimmed.match(/^url\\((.*)\\)$/i);
+          if (urlMatch) {
+            const urlValue = urlMatch[1].trim().replace(/^['"]|['"]$/g, '');
+            return { type: 'url', value: urlValue };
+          }
+          const textValue = trimmed.replace(/^['"]|['"]$/g, '');
+          return { type: 'text', value: textValue };
         }
       }
 
       function copyUserInput() {
         if (util.isHTMLTextAreaElement(original)) {
-          clone.innerHTML = original.value;
+          clone.textContent = original.value;
         }
 
         if (util.isHTMLInputElement(original)) {
@@ -552,7 +537,7 @@
             for (const attribute of ['width', 'height']) {
               const value = clone.getAttribute(attribute);
               if (value) {
-                clone.style.setProperty(attribute, value);
+                clone.style[attribute] = value;
               }
             }
           }
@@ -562,15 +547,7 @@
   }
 
   function embedFonts(node) {
-    return fontFaces.resolveAll().then(cssText => {
-      if (cssText !== '') {
-        const styleNode = document.createElement('style');
-        node.append(styleNode);
-        styleNode.append(document.createTextNode(cssText));
-      }
-
-      return node;
-    });
+    return fontFaces.resolveAll().then(() => node);
   }
 
   function inlineImages(node) {
@@ -972,8 +949,8 @@
         .replaceAll('%', '%25')
         .replaceAll('#', '%23')
         .replaceAll('\n', '%0A')
-        // eslint-disable-next-line no-control-regex
-        .replaceAll(/[\u0000-\u001F\u007F]/g, ''); // remove control characters and DEL characters
+        // eslint-disable-next-line no-control-regex -- 过滤控制字符避免序列化异常
+        .replaceAll(/[\u0000-\u001F\u007F]/g, ''); // 移除控制字符与 DEL 字符
     }
 
     function width(node) {
@@ -1198,7 +1175,7 @@
           }
 
           return inliner.inlineAll(value).then(inlinedValue => {
-            node.style.setProperty(propertyName, inlinedValue, priority);
+            setStyleProperty(node.style, propertyName, inlinedValue, priority);
           });
         });
 
@@ -1209,17 +1186,21 @@
 
   function setStyleProperty(targetStyle, name, value, priority) {
     const needs_prefixing = ['background-clip'].includes(name);
-    if (priority) {
-      targetStyle.setProperty(name, value, priority);
-      if (needs_prefixing) {
-        targetStyle.setProperty(`-webkit-${name}`, value, priority);
-      }
-    } else {
-      targetStyle.setProperty(name, value);
-      if (needs_prefixing) {
-        targetStyle.setProperty(`-webkit-${name}`, value);
-      }
+    const important = priority ? ' !important' : '';
+    appendStyleText(targetStyle, name, value, important);
+    if (needs_prefixing) {
+      appendStyleText(targetStyle, `-webkit-${name}`, value, important);
     }
+  }
+
+  function appendStyleText(targetStyle, name, value, important) {
+    if (!name) {
+      return;
+    }
+    const prefix = targetStyle.cssText && !targetStyle.cssText.trim().endsWith(';')
+      ? '; '
+      : '';
+    targetStyle.cssText += `${prefix}${name}: ${value}${important};`;
   }
 
   function copyUserComputedStyleFast(
@@ -1427,8 +1408,7 @@
     // render at all with `display: none`, so we have to use `visibility: hidden` with `position: fixed`.
     sandbox = document.createElement('iframe');
     sandbox.id = 'domtoimage-sandbox-' + util.uid();
-    sandbox.style.visibility = 'hidden';
-    sandbox.style.position = 'fixed';
+    sandbox.classList.add('wewrite-domtoimage-sandbox');
     document.body.append(sandbox);
 
     return tryTechniques(
@@ -1439,13 +1419,15 @@
     );
 
     function escapeHTML(unsafeText) {
-      if (unsafeText) {
-        const div = document.createElement('div');
-        div.innerText = unsafeText;
-        return div.innerHTML;
+      if (!unsafeText) {
+        return '';
       }
-
-      return '';
+      return unsafeText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function tryTechniques(sandbox, doctype, charset, title) {
@@ -1467,7 +1449,10 @@
         const sandboxDocument
           = document.implementation.createHTMLDocument(title);
         sandboxDocument.head.append(metaCharset);
-        const sandboxHTML = doctype + sandboxDocument.documentElement.outerHTML;
+        const sandboxHTML = doctype
+          + new XMLSerializer().serializeToString(
+            sandboxDocument.documentElement,
+          );
         sandbox.setAttribute('srcdoc', sandboxHTML);
         return sandbox.contentWindow;
       } catch {

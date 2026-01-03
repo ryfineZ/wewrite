@@ -825,7 +825,7 @@ proofreed
 	background-color: var(--scrollbar-bg);
 }
 
-.wewrite-article::-webkit-scrollbar-thumb {
+.wewrite-article::-webkit-scrollbar-thumb {
 	background-color: var(--scrollbar-thumb-bg);
     -webkit-border-radius: var(--radius-l);
     background-clip: padding-box;
@@ -842,4 +842,9 @@ proofreed
 
 .wewrite-render-preview {
 	display:  none;
+}
+
+.wewrite-domtoimage-sandbox {
+	position: fixed;
+	visibility: hidden;
 }

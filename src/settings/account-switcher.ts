@@ -18,15 +18,15 @@ export class WeChatMPAccountSwitcher extends Setting {
                 dropdown.addOption(account.accountName, account.accountName)
             })
             dropdown.setValue(this.plugin.settings.selectedMPAccount ?? $t('settings.select-wechat-mp-account'))
-						.onChange(async (value) => {
+						.onChange((value) => {
 							// this.plugin.onWeChantMPAccountChange(value)
                             this.plugin.messageService.sendMessage('wechat-account-changed', value)
-                            this.plugin.saveSettings()
+                            void this.plugin.saveSettings()
 						});
         }).addExtraButton((button) => {
             button.setIcon('cloud-download')
             .setTooltip($t('settings.refresh-all-material-from-remote'))
-            .onClick(async () => {
+            .onClick(() => {
                 this.plugin.pullAllWeChatMPMaterial();
             })
         }

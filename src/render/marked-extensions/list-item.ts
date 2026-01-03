@@ -7,11 +7,13 @@
 import { Tokens, MarkedExtension } from "marked";
 import { WeWriteMarkedExtension } from "./extension";
 import { sanitizeHTMLToDom } from "obsidian";
-import { url } from "inspector";
+import { serializeChildren, serializeElement } from "src/utils/utils";
 
 export class ListItem extends WeWriteMarkedExtension {
-    async postprocess(html: string) {
-        const root = sanitizeHTMLToDom(html)
+    postprocess(html: string): Promise<string> {
+        const fragment = sanitizeHTMLToDom(html)
+        const root = createDiv()
+        root.appendChild(fragment)
         const uls = root.querySelectorAll<HTMLElement>('ul,ol')
         for (let ul of uls) {
             if (ul.children.length === 0) {
@@ -25,9 +27,7 @@ export class ListItem extends WeWriteMarkedExtension {
                 frame.appendChild(ul)
             }
         }
-        const tempDiv = document.createElement('div');
-        tempDiv.appendChild(root);
-        return tempDiv.innerHTML;
+        return Promise.resolve(serializeChildren(root));
         
     }
     renderItem(item: Tokens.ListItem) {
@@ -47,7 +47,7 @@ export class ListItem extends WeWriteMarkedExtension {
                     list_el.createEl('p').setText('')
                 }
             }
-            return frame.outerHTML
+            return serializeElement(frame)
         }
     }
 

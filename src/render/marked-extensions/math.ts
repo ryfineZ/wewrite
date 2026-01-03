@@ -10,7 +10,7 @@ import { parseMath } from "../mathjax";
 import { MarkedExtension, Token, Tokens } from "marked";
 import { WeWriteMarkedExtension } from "./extension";
 
-const inlineRule = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;
+const inlineRule = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n$]))\1/;
 const blockRule = /^(\${1,2})\n((?:\\[^]|[^\\])+?)\n\1(?:\n|$)/;
 
 export class MathRenderer extends WeWriteMarkedExtension {

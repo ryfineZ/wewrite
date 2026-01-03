@@ -8,6 +8,7 @@
 import { MarkedExtension } from "marked";
 import { sanitizeHTMLToDom } from "obsidian";
 import { WeWriteMarkedExtension } from "./extension";
+import { serializeChildren } from "src/utils/utils";
 
 function isHeading(element:Element) {
     // 检查元素是否为标题标签
@@ -54,11 +55,11 @@ export class Summary extends WeWriteMarkedExtension {
         }
         return dom
     }
-    async postprocess(html: string) {
+    postprocess(html: string): Promise<string> {
         const headingFolder = this.previewRender.articleProperties.get('folded-headings')
 
         if (headingFolder === undefined || !headingFolder) {
-            return html
+            return Promise.resolve(html)
         }
         const dom = sanitizeHTMLToDom(html)
         const tempDiv = createEl('div');
@@ -68,7 +69,7 @@ export class Summary extends WeWriteMarkedExtension {
             this.processHeading(tempDiv, heading)
         }
         
-        return tempDiv.innerHTML;
+        return Promise.resolve(serializeChildren(tempDiv));
     }
 
     markedExtension(): MarkedExtension {

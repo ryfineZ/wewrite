@@ -25,15 +25,17 @@ export class CodeHighlight extends WeWriteMarkedExtension {
           try {
             const result = hljs.highlight(code, { language: lang });
             return result.value;
-          } catch (err) { }
+          } catch (err) {
+            return code;
+          }
         }
 
         try {
           const result = hljs.highlightAuto(code);
           return result.value;
-        } catch (err) { }
-
-        return ''; 
+        } catch (err) {
+          return code;
+        }
       }
     })
   }

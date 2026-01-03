@@ -21,7 +21,7 @@ import { ResourceManager } from "src/assets/resource-manager";
 import { $t } from "src/lang/i18n";
 
 export class MPArticleHeader {
-	updateDraftDraftId(media_id: any) {
+	updateDraftDraftId(media_id: string) {
 		if (this.activeLocalDraft !== undefined) {
 			this.activeLocalDraft.last_draft_id = media_id;
 		}
@@ -45,14 +45,14 @@ export class MPArticleHeader {
 		this.plugin.messageService.registerListener(
 			"wechat-account-changed",
 			(data: string) => {
-				this.updateLocalDraft();
+				void this.updateLocalDraft();
 			}
 		);
 
 		this.plugin.messageService.registerListener(
 			"active-file-changed",
 			(data: string) => {
-				this.updateLocalDraft();
+				void this.updateLocalDraft();
 			}
 		);
 		this.plugin.messageService.registerListener(
@@ -62,7 +62,7 @@ export class MPArticleHeader {
 				this.setCoverImage(url);
 				if (this.activeLocalDraft) {
 					this.activeLocalDraft.thumb_media_id = undefined;
-					this.localDraftmanager.setDraft(this.activeLocalDraft);
+					void this.localDraftmanager.setDraft(this.activeLocalDraft);
 				}
 			}
 		);
@@ -73,7 +73,7 @@ export class MPArticleHeader {
 				this.setCoverImage(item.url);
 				if (this.activeLocalDraft) {
 					this.activeLocalDraft.thumb_media_id = item.media_id;
-					this.localDraftmanager.setDraft(this.activeLocalDraft);
+					void this.localDraftmanager.setDraft(this.activeLocalDraft);
 				}
 			}
 		);
@@ -82,17 +82,17 @@ export class MPArticleHeader {
 			this.plugin,
 			(url: string) => {
 				//save it to local folder.
-				ResourceManager.getInstance(this.plugin).saveImageFromUrl(url);
+				void ResourceManager.getInstance(this.plugin).saveImageFromUrl(url);
 				this.cover_image = url;
 				this.setCoverImage(url);
 				if (this.activeLocalDraft) {
 					this.activeLocalDraft.thumb_media_id = undefined;
 					this.activeLocalDraft.cover_image_url = url;
-					this.localDraftmanager.setDraft(this.activeLocalDraft);
+					void this.localDraftmanager.setDraft(this.activeLocalDraft);
 				}
 			}
 		);
-		this.updateLocalDraft();
+		void this.updateLocalDraft();
 	}
 
 	onNoteRename(file: TFile) {
@@ -104,7 +104,7 @@ export class MPArticleHeader {
 		if (this.activeLocalDraft !== undefined) {
 			this.activeLocalDraft.notePath = file.path;
 			const dm = LocalDraftManager.getInstance(this.plugin);
-			dm.setDraft(this.activeLocalDraft);
+			void dm.setDraft(this.activeLocalDraft);
 		}
 	}
 
@@ -124,10 +124,10 @@ export class MPArticleHeader {
 				this._title = text;
 				text.setPlaceholder(
 					$t("views.article-header.article-title-placeholder")
-				).onChange(async (value) => {
+				).onChange((value) => {
 					if (this.activeLocalDraft !== undefined) {
 						this.activeLocalDraft.title = value;
-						this.localDraftmanager.setDraft(this.activeLocalDraft);
+						void this.localDraftmanager.setDraft(this.activeLocalDraft);
 						this.plugin.messageService.sendMessage(
 							"draft-title-updated",
 							value
@@ -141,10 +141,10 @@ export class MPArticleHeader {
 				this._author = text;
 				text.setPlaceholder(
 					$t("views.article-header.author-name")
-				).onChange(async (value) => {
+				).onChange((value) => {
 					if (this.activeLocalDraft !== undefined) {
 						this.activeLocalDraft.author = value;
-						this.localDraftmanager.setDraft(this.activeLocalDraft);
+						void this.localDraftmanager.setDraft(this.activeLocalDraft);
 					}
 				});
 			});
@@ -157,8 +157,8 @@ export class MPArticleHeader {
 					.setTooltip(
 						$t("views.article-header.generate-digest-by-ai")
 					)
-					.onClick(async () => {
-						this.generateDigest();
+					.onClick(() => {
+						void this.generateDigest();
 					});
 			});
 
@@ -173,7 +173,7 @@ export class MPArticleHeader {
 			const target = event.target as HTMLTextAreaElement;
 			if (this.activeLocalDraft !== undefined) {
 				this.activeLocalDraft.digest = target.value;
-				this.localDraftmanager.setDraft(this.activeLocalDraft);
+				void this.localDraftmanager.setDraft(this.activeLocalDraft);
 			}
 		};
 
@@ -188,7 +188,7 @@ export class MPArticleHeader {
 				toggle.onChange((value) => {
 					if (this.activeLocalDraft !== undefined) {
 						this.activeLocalDraft.need_open_comment = value ? 1 : 0;
-						this.localDraftmanager.setDraft(this.activeLocalDraft);
+						void this.localDraftmanager.setDraft(this.activeLocalDraft);
 					}
 				});
 			});
@@ -203,7 +203,7 @@ export class MPArticleHeader {
 						this.activeLocalDraft.only_fans_can_comment = value
 							? 1
 							: 0;
-						this.localDraftmanager.setDraft(this.activeLocalDraft);
+						void this.localDraftmanager.setDraft(this.activeLocalDraft);
 					}
 				});
 			});
@@ -229,7 +229,7 @@ export class MPArticleHeader {
 		if (summary) {
 			this._digest.value = summary;
 			this.activeLocalDraft.digest = summary;
-			this.localDraftmanager.setDraft(this.activeLocalDraft);
+			void this.localDraftmanager.setDraft(this.activeLocalDraft);
 		}
 		this.plugin.hideSpinner();
 	}
@@ -243,7 +243,7 @@ export class MPArticleHeader {
 					.setTooltip(
 						$t("views.article-header.generate-cover-image-by-ai")
 					)
-					.onClick(async () => {
+					.onClick(() => {
 						if (this.imageGenerateModal === undefined) {
 							return;
 						}
@@ -273,46 +273,51 @@ export class MPArticleHeader {
 		coverframe.ondragover = (e) => {
 			e.preventDefault();
 		};
-		coverframe.addEventListener("drop", async (e) => {
+		coverframe.addEventListener("drop", (e) => {
 			e.preventDefault();
+			void (async () => {
+				const url = e.dataTransfer?.getData("text/uri-list");
+				if (url) {
+					if (url.startsWith("obsidian://")) {
+						//image from vault
 
-			const url = e.dataTransfer?.getData("text/uri-list");
-			if (url) {
-				if (url.startsWith("obsidian://")) {
-					//image from vault
+						const urlParser = new UrlUtils(this.plugin.app);
 
-					const urlParser = new UrlUtils(this.plugin.app);
-
-					const appurl = await urlParser.getInternalLinkDisplayUrl(
-						url
-					);
-					this.cover_image = appurl;
-				} else if (url.startsWith("http") || url.startsWith("https")) {
-					this.cover_image = url;
-					const media_id = await this.getCoverImageMediaId(url);
-					coverframe.setAttr("data-media_id", media_id);
-					if (this.activeLocalDraft !== undefined) {
-						this.activeLocalDraft.thumb_media_id = media_id;
+						const appurl = await urlParser.getInternalLinkDisplayUrl(
+							url
+						);
+						this.cover_image = appurl;
+					} else if (url.startsWith("http") || url.startsWith("https")) {
+						this.cover_image = url;
+						const media_id = await this.getCoverImageMediaId(url);
+						if (media_id) {
+							coverframe.setAttr("data-media_id", media_id);
+						}
+						if (this.activeLocalDraft !== undefined) {
+							this.activeLocalDraft.thumb_media_id = media_id;
+						}
+					} else if (url.startsWith("file://")) {
+						//image from local file
+						const filePath = url.replace("file://", "");
+						const file = await this.plugin.app.vault.adapter.readBinary(
+							filePath
+						);
+						const base64 = arrayBufferToBase64(file);
+						this.cover_image = `data:image/png;base64,${base64}`;
+					} else {
+						this.cover_image = "";
+						this.setCoverImageXY();
 					}
-				} else if (url.startsWith("file://")) {
-					//image from local file
-					const filePath = url.replace("file://", "");
-					const file = await this.plugin.app.vault.adapter.readBinary(
-						filePath
-					);
-					const base64 = arrayBufferToBase64(file);
-					this.cover_image = `data:image/png;base64,${base64}`;
-				} else {
-					this.cover_image = "";
-					this.setCoverImageXY();
+					if (this.activeLocalDraft !== undefined) {
+						this.activeLocalDraft.cover_image_url = this.cover_image ?? undefined;
+					}
+					if (this.activeLocalDraft) {
+						void this.localDraftmanager.setDraft(this.activeLocalDraft);
+					}
+					this.setCoverImage(this.cover_image);
 				}
-				if (this.activeLocalDraft !== undefined) {
-					this.activeLocalDraft.cover_image_url = this.cover_image!;
-				}
-				this.localDraftmanager.setDraft(this.activeLocalDraft!);
-				this.setCoverImage(this.cover_image!);
-			}
-			coverframe.removeClass("image-on-dragover");
+				coverframe.removeClass("image-on-dragover");
+			})();
 		});
 
 		return coverframe;
@@ -353,18 +358,18 @@ export class MPArticleHeader {
 			this.coverFrame.appendChild(canvas);
 		};
 	}
-	async updateCoverImage() {
+	updateCoverImage() {
 		if (this.imageGenerateModal === undefined) {
 			return;
 		}
 		if (this._digest.value !== undefined && this._digest.value) {
 			const prompt = this._digest.value.trim()
 			if (prompt){
-				this.imageGenerateModal.prompt = prompt;
-			}
+			this.imageGenerateModal.prompt = prompt;
 		}
-		this.imageGenerateModal.open();
 	}
+	this.imageGenerateModal.open();
+}
 	resetImage() {
 		this.setCoverImageXY(0, 0);
 	}
@@ -428,6 +433,8 @@ export class MPArticleHeader {
 		return true;
 	}
 	updateHeaderProporties() {
+		let x = 0;
+		let y = 0;
 		if (this.activeLocalDraft !== undefined) {
 			this._title.setValue(this.activeLocalDraft.title);
 			this._author.setValue(this.activeLocalDraft.author || "");
@@ -439,8 +446,9 @@ export class MPArticleHeader {
 				(this.activeLocalDraft.only_fans_can_comment || 0) > 0
 			);
 			this.cover_image = this.activeLocalDraft.cover_image_url || "";
-			const x = this.activeLocalDraft.pic_crop_235_1?.split(" ")[0] || 0;
-			const y = this.activeLocalDraft.pic_crop_235_1?.split(" ")[1] || 0;
+			const [xStr, yStr] = this.activeLocalDraft.pic_crop_235_1?.split(" ") ?? [];
+			x = xStr ? Number(xStr) : 0;
+			y = yStr ? Number(yStr) : 0;
 		} else {
 			this._title.setValue("");
 			this._author.setValue("");
@@ -448,11 +456,9 @@ export class MPArticleHeader {
 			this._needOpenComment.setValue(false);
 			this._onlyFansCanComment.setValue(false);
 			this.cover_image = "";
-			const x = 0;
-			const y = 0;
 		}
 		
-		this.setCoverImageXY();
+		this.setCoverImageXY(Number(x), Number(y));
 		this.plugin.messageService.sendMessage(
 			"draft-title-updated",
 			this._title.getValue()

@@ -26,6 +26,7 @@ import {
 	uploadURLImage,
 	uploadURLVideo,
 } from "src/render/post-render";
+import { serializeChildren } from "src/utils/utils";
 import { WechatRender } from "src/render/wechat-render";
 import { ResourceManager } from "../assets/resource-manager";
 import { WechatClient } from "../wechat-api/wechat-client";
@@ -33,7 +34,6 @@ import { MPArticleHeader } from "./mp-article-header";
 import { ThemeManager } from "../theme/theme-manager";
 import { ThemeSelector } from "../theme/theme-selector";
 import { WebViewModal } from "./webview";
-import { log } from "console";
 
 export const VIEW_TYPE_WEWRITE_PREVIEW = "wewrite-article-preview";
 export interface ElectronWindow extends Window {
@@ -58,38 +58,35 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	private articleDiv: HTMLDivElement;
 	private listeners: EventRef[] = [];
 	currentView: EditorView;
-	observer: any;
+	observer: MutationObserver | null = null;
 	private wechatClient: WechatClient;
 	private plugin: WeWritePlugin;
 	private themeSelector: ThemeSelector;
-	private debouncedRender = debounce(async () => {
+	private debouncedRender = debounce(() => {
 		if (this.plugin.settings.realTimeRender) {
-			await this.renderDraft();
+			void this.renderDraft();
 		}
 	}, 1000);
-	private debouncedUpdate = debounce(async () => {
+	private debouncedUpdate = debounce(() => {
 		if (this.plugin.settings.realTimeRender) {
-			await this.renderDraft();
+			void this.renderDraft();
 		}
 	}, 1000);
-	private debouncedCustomThemeChange = debounce(async (theme: string) => {
-		this.getArticleProperties();
-		this.articleProperties.set("custom_theme", theme);
-		this.setArticleProperties();
-		this.renderDraft();
+	private debouncedCustomThemeChange = debounce((theme: string) => {
+		void this.applyCustomThemeChange(theme);
 	}, 2000);
 
 	private draftHeader: MPArticleHeader;
 	articleProperties: Map<string, string> = new Map();
 	editorView: EditorView | null = null;
 	lastLeaf: WorkspaceLeaf | undefined;
-	renderDiv: any;
-	elementMap: Map<string, Node | string>;
+	renderDiv!: HTMLElement;
+	elementMap: Map<string, HTMLElement | string> = new Map();
 	articleTitle: Setting;
 	containerDiv: HTMLElement;
 	mpModal: WebViewModal;
 	isActive: boolean = false;
-	renderPreviewer: any;
+	renderPreviewer!: HTMLElement;
 	getViewType(): string {
 		return VIEW_TYPE_WEWRITE_PREVIEW;
 	}
@@ -106,7 +103,14 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		this.themeSelector = new ThemeSelector(plugin);
 	}
 
-	async onOpen() {
+	private async applyCustomThemeChange(theme: string) {
+		this.getArticleProperties();
+		this.articleProperties.set("custom_theme", theme);
+		await this.setArticleProperties();
+		await this.renderDraft();
+	}
+
+	onOpen(): Promise<void> {
 		this.buildUI();
 		this.startListen();
 
@@ -119,12 +123,13 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		this.themeSelector.startWatchThemes();
 		this.plugin.messageService.registerListener(
 			"custom-theme-changed",
-			async (theme: string) => {
+			(theme: string) => {
 				this.debouncedCustomThemeChange(theme);
 			}
 		);
 		this.plugin.messageService.sendMessage("active-file-changed", null);
-		this.loadComponents();
+		void this.loadComponents();
+		return Promise.resolve();
 	}
 
 	getArticleProperties() {
@@ -154,7 +159,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 					$t("views.previewer.file-not-found-path", [path])
 				);
 			}
-			this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				this.articleProperties.forEach((value, key) => {
 					frontmatter[key] = value;
 				});
@@ -174,7 +179,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		}
 		return null;
 	}
-	async buildUI() {
+	buildUI() {
 		const container = this.containerEl.children[1];
 		container.empty();
 
@@ -185,47 +190,51 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			.setName($t("views.previewer.article-title"))
 			.setHeading()
 			.addDropdown((dropdown: DropdownComponent) => {
-				this.themeSelector.dropdown(dropdown);
+				void this.themeSelector.dropdown(dropdown);
 			})
 
 			.addExtraButton((button) => {
 				button
 					.setIcon("refresh-cw")
 					.setTooltip($t("views.previewer.render-article"))
-					.onClick(async () => {
-						this.renderDraft();
+					.onClick(() => {
+						void this.renderDraft();
 					});
 			})
 			.addExtraButton((button) => {
 				button
 					.setIcon("send-horizontal")
 					.setTooltip($t("views.previewer.send-article-to-draft-box"))
-					.onClick(async () => {
-						if (await this.checkCoverImage()) {
-							this.sendArticleToDraftBox();
-						} else {
-							new Notice(
-								$t("views.previewer.please-set-cover-image")
-							);
-						}
+					.onClick(() => {
+						void (async () => {
+							if (await this.checkCoverImage()) {
+								await this.sendArticleToDraftBox();
+							} else {
+								new Notice(
+									$t("views.previewer.please-set-cover-image")
+								);
+							}
+						})();
 					});
 			})
 			.addExtraButton((button) => {
 				button
 					.setIcon("clipboard-copy")
 					.setTooltip($t("views.previewer.copy-article-to-clipboard"))
-					.onClick(async () => {
-						const data = this.getArticleContent();
-						await navigator.clipboard.write([
-							new ClipboardItem({
-								"text/html": new Blob([data], {
-									type: "text/html",
+					.onClick(() => {
+						void (async () => {
+							const data = this.getArticleContent();
+							await navigator.clipboard.write([
+								new ClipboardItem({
+									"text/html": new Blob([data], {
+										type: "text/html",
+									}),
 								}),
-							}),
-						]);
-						new Notice(
-							$t("views.previewer.article-copied-to-clipboard")
-						);
+							]);
+							new Notice(
+								$t("views.previewer.article-copied-to-clipboard")
+							);
+						})();
 					});
 			});
 
@@ -242,7 +251,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		this.articleDiv = this.containerDiv.createDiv({ cls: "article-div" });
 	}
 	async checkCoverImage() {
-		return this.draftHeader.checkCoverImage();
+		return await this.draftHeader.checkCoverImage();
 	}
 	async sendArticleToDraftBox() {
 		const root = this.articleDiv.firstElementChild as HTMLElement | null;
@@ -282,15 +291,16 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		}
 	}
 	public getArticleContent() {
-		return this.articleDiv.innerHTML;
+		return serializeChildren(this.articleDiv);
 	}
 	// async getCSS() {
 	// 	return await ThemeManager.getInstance(this.plugin).getCSS();
 	// }
 
-	async onClose() {
+	onClose(): Promise<void> {
 		// Clean up our view
 		this.stopListen();
+		return Promise.resolve();
 	}
 
 	async parseActiveMarkdown() {
@@ -328,35 +338,35 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		this.articleDiv.empty();
 		this.articleDiv.appendChild(articleSection);
 
-		this.elementMap.forEach(
-			async (node: HTMLElement | string, id: string) => {
-				const item = this.articleDiv.querySelector(
-					"#" + id
-				) as HTMLElement;
+		for (const [id, node] of this.elementMap.entries()) {
+			const item = this.articleDiv.querySelector(
+				"#" + id
+			) as HTMLElement;
 
-				if (!item) return;
-				if (typeof node === "string") {
-					const tf = ResourceManager.getInstance(
-						this.plugin
-					).getFileOfLink(node);
-					if (tf) {
-						const file = this.plugin.app.vault.getFileByPath(
-							tf.path
-						);
-						if (file) {
-							const body = await WechatRender.getInstance(
-								this.plugin,
-								this
-							).parseNote(file.path, this.articleDiv, this);
-							item.empty();
-							item.appendChild(sanitizeHTMLToDom(body));
-						}
-					}
-				} else {
-					item.appendChild(node);
-				}
+			if (!item) {
+				continue;
 			}
-		);
+			if (typeof node === "string") {
+				const tf = ResourceManager.getInstance(
+					this.plugin
+				).getFileOfLink(node);
+				if (tf) {
+					const file = this.plugin.app.vault.getFileByPath(
+						tf.path
+					);
+					if (file) {
+						const body = await WechatRender.getInstance(
+							this.plugin,
+							this
+						).parseNote(file.path, this.articleDiv, this);
+						item.empty();
+						item.appendChild(sanitizeHTMLToDom(body));
+					}
+				}
+			} else {
+				item.appendChild(node);
+			}
+		}
 		// return this.articleDiv.innerHTML;
 	}
 	async renderDraft() {
@@ -369,12 +379,20 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 			return;
 		}
 		const element = this.articleDiv.firstChild as HTMLElement;
-		const apply = async () => {
+		const apply = () => {
 			if (!element.isConnected) return;
-			await ThemeManager.getInstance(this.plugin).applyTheme(element);
+			void ThemeManager.getInstance(this.plugin)
+				.applyTheme(element)
+				.catch((error) => {
+					console.error("应用主题失败:", error);
+				});
 		};
-		if (typeof (window as any).requestIdleCallback === 'function') {
-			(window as any).requestIdleCallback(apply);
+		type WindowWithIdleCallback = Window & {
+			requestIdleCallback?: (cb: () => void) => number;
+		};
+		const idleWindow = window as WindowWithIdleCallback;
+		if (typeof idleWindow.requestIdleCallback === 'function') {
+			idleWindow.requestIdleCallback(apply);
 		} else {
 			setTimeout(apply, 0);
 		}
@@ -404,17 +422,17 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		);
 		this.listeners.push(ec);
 
-		const el = this.app.workspace.on("active-leaf-change", async (leaf) => {
+		const el = this.app.workspace.on("active-leaf-change", (leaf) => {
 			if (leaf){
 				if(leaf.view.getViewType() === "markdown") {
 					this.plugin.messageService.sendMessage(
 						"active-file-changed",
 						null
 					);
-					this.debouncedUpdate();
+					void this.debouncedUpdate();
 				}else {
 					
-					this.isActive = (leaf.view === this)
+					this.isActive = leaf.view.getViewType() === VIEW_TYPE_WEWRITE_PREVIEW
 				}
 
 			}
@@ -426,7 +444,7 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 	}
 
 	onEditorChange(editor: Editor, info: MarkdownView) {
-		this.debouncedRender();
+		void this.debouncedRender();
 	}
 	updateElementByID(id: string, html: string): void {
 		const item = this.articleDiv.querySelector("#" + id) as HTMLElement;
@@ -447,17 +465,14 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		if (typeof node === "string") {
 			this.elementMap.set(id, node);
 		} else {
-			this.elementMap.set(id, node.cloneNode(true));
+			this.elementMap.set(id, node.cloneNode(true) as HTMLElement);
 		}
 	}
 	private async loadComponents() {
-			const view = this;
 			type InternalComponent = Component & {
 				_children: Component[];
 				onload: () => void | Promise<void>;
 			}
-	
-			const internalView = view as unknown as InternalComponent;
 	
 			// recursively call onload() on all children, depth-first
 			const loadChildren = async (
@@ -480,12 +495,12 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 				try {
 					// relies on the Sheet plugin (advanced-table-xt) not to be minified
 					if (component?.constructor?.name === 'SheetElement') {
-						await component.onload();
+						await Promise.resolve(component.onload());
 					}
 				} catch (error) {
 					console.error(`Error calling onload()`, error);
 				}
 			};
-			await loadChildren(internalView);
+			await loadChildren(this as unknown as InternalComponent);
 		}
 }

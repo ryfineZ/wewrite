@@ -77,20 +77,20 @@ export const initWeWriteDB = () => {
 const db = initWeWriteDB();
 
 
-export const getWeWriteSetting = async (): Promise<WeWriteSetting | undefined> => {
+export const getWeWriteSetting = (): Promise<WeWriteSetting | undefined> => {
     return new Promise((resolve, reject) => {
         db.get('wewrite-settings')
-            .then((doc: any) => {
-                resolve(doc);
+            .then((doc) => {
+                resolve(doc as WeWriteSetting);
             })
-            .catch((error: any) => {
-                console.info('Error getting WeWriteSetting:', error);
+            .catch((error: unknown) => {
+                console.warn('获取 WeWriteSetting 失败:', error);
                 resolve(undefined)
             });
     })
 }
 
-export const saveWeWriteSetting = async (doc: WeWriteSetting): Promise<void> => {
+export const saveWeWriteSetting = (doc: WeWriteSetting): Promise<void> => {
     return new Promise((resolve, reject) => {
         doc._id = 'wewrite-settings';
         db.get(doc._id).then(existedDoc => {
@@ -102,7 +102,7 @@ export const saveWeWriteSetting = async (doc: WeWriteSetting): Promise<void> => 
                 .then(() => {
                     resolve();
                 })
-                .catch((error: any) => {
+                .catch((error: unknown) => {
                     console.error('Error setting WeWriteSetting:', error);
                     resolve()
                 });
@@ -111,7 +111,7 @@ export const saveWeWriteSetting = async (doc: WeWriteSetting): Promise<void> => 
                 .then(() => {
                     resolve();
                 })
-                .catch((error: any) => {
+                .catch((error: unknown) => {
                     console.error('Error setting WeWriteSetting:', error);
                     resolve()
                 });

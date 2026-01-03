@@ -13,11 +13,7 @@ declare module "obsidian" {
         plugins: {
             enabledPlugins: Set<string>;
             plugins: {
-                ['obsidian-icon-folder']?: {
-                    // api: {
-                    //     getIconByName: (iconNameWithPrefix: string) => {}
-                    // };
-                };
+                ['obsidian-icon-folder']?: Record<string, unknown>;
             };
         };
     }

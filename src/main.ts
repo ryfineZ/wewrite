@@ -23,6 +23,7 @@ import { ImageGenerateModal } from "./modals/image-generate-modal";
 import { PromptModal } from "./modals/prompt-modal";
 import { SynonymsModal } from "./modals/synonyms-modal";
 import { WeWriteSettingTab } from "./settings/setting-tab";
+import { DeepSeekResult } from "./types/types";
 import {
 	getWeWriteSetting,
 	saveWeWriteSetting,
@@ -118,33 +119,28 @@ export default class WeWritePlugin extends Plugin {
 		this.settings.chatSetting.modelSelected = this.settings.chatSetting.modelSelected?.trim();
 		this.settings.css_styles_folder = this.settings.css_styles_folder?.trim();
 	}
-	saveSettings: Function = debounce(async () => {
+	saveSettings: () => void = debounce(() => {
+		void this.persistSettings();
+	}, 3000);
+	saveThemeFolderDebounce: () => void = debounce(() => {
+		void this.saveThemeFolder();
+	}, 3000);
+
+	private async persistSettings(): Promise<void> {
 		delete this.settings._id;
 		delete this.settings._rev;
 		this.trimSettings();
 		await saveWeWriteSetting(this.settings);
 		await this.saveThemeFolder();
-	}, 3000);
-	saveThemeFolderDebounce: Function = debounce(async () => {
-		await this.saveThemeFolder();
-	}, 3000);
+	}
 
 	// proofService: ProofService;
 
 	getCurrentEditor(): Editor | null {
-		const activeLeaf = this.app.workspace.activeLeaf;
-		if (!activeLeaf) {
-			return null;
-		}
-
-		const view = activeLeaf.view;
-		if (view?.getViewType() === "markdown") {
-			return (view as any).editor;
-		}
-
-		return null;
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		return view?.editor ?? null;
 	}
-	async addEditorMenu() {
+	addEditorMenu() {
 		this.messageService.registerListener(
 			"image-generated",
 			(url: string) => {
@@ -164,7 +160,7 @@ export default class WeWritePlugin extends Plugin {
 		);
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
-				// @ts-ignore: Obsidian ts defined incomplete.
+				// @ts-ignore: Obsidian 类型定义不完整
 				let file = editor.editorComponent.file;
 				file =
 					file instanceof TFile
@@ -185,19 +181,20 @@ export default class WeWritePlugin extends Plugin {
 							subItem
 								.setTitle($t("main.polish"))
 								.setIcon("sun")
-								.onClick(async () => {
-									const content = editor.getSelection();
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
 
-									const polished = await this.polishContent(
-										content
-									);
+										const polished =
+											await this.polishContent(content);
 
-									if (polished) {
-										editor.replaceSelection(
-											polished,
-											content
-										);
-									}
+										if (polished) {
+											editor.replaceSelection(
+												polished,
+												content
+											);
+										}
+									})();
 								});
 						});
 
@@ -244,98 +241,124 @@ export default class WeWritePlugin extends Plugin {
 							subItem
 								.setTitle($t("main.synonyms"))
 								.setIcon("book-a")
-								.onClick(async () => {
-									const content = editor.getSelection();
-									const synonym = await this.getSynonyms(
-										content
-									);
-									this.hideSpinner();
-
-									if (synonym) {
-										editor.replaceSelection(
-											synonym,
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
+										const synonym = await this.getSynonyms(
 											content
 										);
-									}
+										this.hideSpinner();
+
+										if (synonym) {
+											editor.replaceSelection(
+												synonym,
+												content
+											);
+										}
+									})();
 								});
 						});
 						subMenu.addItem((subItem: MenuItem) => {
 							subItem
 								.setTitle($t("main.to-english"))
 								.setIcon("languages")
-								.onClick(async () => {
-									const content = editor.getSelection();
-									const translated =
-										await this.translateToEnglish(content);
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
+										const translated =
+											await this.translateToEnglish(
+												content
+											);
 
-									if (translated) {
-										editor.replaceSelection(
-											translated,
-											content
-										);
-									}
+										if (translated) {
+											editor.replaceSelection(
+												translated,
+												content
+											);
+										}
+									})();
 								});
 						});
 						subMenu.addItem((subItem: MenuItem) => {
 							subItem
 								.setTitle($t("main.to-chinese"))
 								.setIcon("languages")
-								.onClick(async () => {
-									const content = editor.getSelection();
-									const translated =
-										await this.translateToChinese(content);
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
+										const translated =
+											await this.translateToChinese(
+												content
+											);
 
-									if (translated) {
-										editor.replaceSelection(
-											translated,
-											content
-										);
-									}
+										if (translated) {
+											editor.replaceSelection(
+												translated,
+												content
+											);
+										}
+									})();
 								});
 						});
 						subMenu.addItem((subItem: MenuItem) => {
 							subItem
 								.setTitle($t("main.generate-mermaid"))
 								.setIcon("git-compare-arrows")
-								.onClick(async () => {
-									const content = editor.getSelection();
-									const mermaid = await this.generateMermaid(
-										content
-									);
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
+										const mermaid =
+											await this.generateMermaid(
+												content
+											);
 
-									if (mermaid) {
-										editor.replaceSelection(
-											mermaid,
-											content
-										);
-									}
+										if (mermaid) {
+											editor.replaceSelection(
+												mermaid,
+												content
+											);
+										}
+									})();
 								});
 						});
 						subMenu.addItem((subItem: MenuItem) => {
 							subItem
 								.setTitle($t("main.generate-latex"))
 								.setIcon("square-radical")
-								.onClick(async () => {
-									const content = editor.getSelection();
-									let latex = await this.generateLaTex(
-										content
-									);
+								.onClick(() => {
+									void (async () => {
+										const content = editor.getSelection();
+										let latex =
+											await this.generateLaTex(content);
 
-									if (latex) {
-										latex = latex
-											.replace(/\\begin{document}/g, "")
-											.replace(/\\end{document}/g, "");
-										latex = latex.replace(/\\\\/g, "\\");
-										editor.replaceSelection(latex, content);
-									}
+										if (latex) {
+											latex = latex
+												.replace(
+													/\\begin{document}/g,
+													""
+												)
+												.replace(
+													/\\end{document}/g,
+													""
+												);
+											latex = latex.replace(
+												/\\\\/g,
+												"\\"
+											);
+											editor.replaceSelection(
+												latex,
+												content
+											);
+										}
+									})();
 								});
 						});
 						subMenu.addItem((subItem: MenuItem) => {
 							subItem
 								.setTitle($t("main.text-to-image"))
 								.setIcon("image-plus")
-								.onClick(async () => {
-									return this.generateImage(editor);
+								.onClick(() => {
+									void this.generateImage(editor);
 								});
 						});
 					} else {
@@ -343,19 +366,19 @@ export default class WeWritePlugin extends Plugin {
 							subItem
 								.setTitle($t("main.polish"))
 								.setIcon("user-pen")
-								.onClick(async () => {
-									const content = await this.app.vault.read(
-										file
-									);
-									const polished = await this.polishContent(
-										content
-									);
-									if (polished) {
-										await this.app.vault.modify(
-											file,
-											polished
-										);
-									}
+								.onClick(() => {
+									void (async () => {
+										const content =
+											await this.app.vault.read(file);
+										const polished =
+											await this.polishContent(content);
+										if (polished) {
+											await this.app.vault.modify(
+												file,
+												polished
+											);
+										}
+									})();
 								});
 						});
 						// subMenu.addItem((subItem) => {
@@ -393,14 +416,18 @@ export default class WeWritePlugin extends Plugin {
 		);
 	}
 	showLeftView() {
-		this.activateMaterialView();
+		void this.activateMaterialView();
 	}
 	pullAllWeChatMPMaterial() {
 		if (this.settings.selectedMPAccount === undefined) {
 			new Notice($t("main.no-wechat-mp-account-selected"));
 			return;
 		}
-		this.assetsManager.pullAllMaterial(this.settings.selectedMPAccount);
+		void this.assetsManager
+			.pullAllMaterial(this.settings.selectedMPAccount)
+			.catch((error) => {
+				console.error("拉取公众号素材失败:", error);
+			});
 	}
 	assetsUpdated() {
 		this.messageService.sendMessage("material-updated", null);
@@ -410,7 +437,9 @@ export default class WeWritePlugin extends Plugin {
 			return;
 		}
 		this.settings.selectedMPAccount = value;
-		this.assetsManager.loadMaterial(value);
+		void this.assetsManager.loadMaterial(value).catch((error) => {
+			console.error("加载公众号素材失败:", error);
+		});
 	}
 
 	createSpinner() {
@@ -430,26 +459,24 @@ export default class WeWritePlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = await Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await getWeWriteSetting()
-		);
+		const savedSettings = await getWeWriteSetting();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings);
 		await this.loadThemeFolder();
 	}
 	async updateIpAddress(): Promise<string> {
-		return new Promise((resolve, reject) => {
-			getPublicIpAddress().then(async (ip) => {
-				if (ip !== undefined && ip) {
-					this.settings.ipAddress = ip;
-					await this.saveSettings();
-					resolve(ip);
-				}
-			}).catch((error) => {
-				console.error("Error fetching public IP address:", error);
-				reject("Failed to fetch public IP address: " + error);
-			})
-		});
+		try {
+			const ip = await getPublicIpAddress();
+			if (!ip) {
+				throw new Error("空的公网 IP 地址");
+			}
+			this.settings.ipAddress = ip;
+			void this.saveSettings();
+			return ip;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			console.error("获取公网 IP 地址失败:", error);
+			throw new Error(`获取公网 IP 地址失败: ${message}`);
+		}
 	}
 
 	async activateView() {
@@ -467,7 +494,7 @@ export default class WeWritePlugin extends Plugin {
 			});
 		}
 		if (leaf) {
-			workspace.revealLeaf(leaf);
+			void workspace.revealLeaf(leaf);
 		}
 	}
 	async activateMaterialView() {
@@ -486,9 +513,11 @@ export default class WeWritePlugin extends Plugin {
 			});
 		}
 
-		if (leaf) workspace.revealLeaf(leaf);
+		if (leaf) {
+			void workspace.revealLeaf(leaf);
+		}
 	}
-	async getAccessToken(accountName: string) {
+	getAccessToken(accountName: string) {
 		const account = this.getMPAccountByName(accountName);
 		if (account === undefined) {
 			new Notice($t("main.no-wechat-mp-account-selected"));
@@ -618,7 +647,7 @@ export default class WeWritePlugin extends Plugin {
 		account.access_token = accessToken;
 		account.lastRefreshTime = new Date().getTime();
 		account.expires_in = expires_in;
-		this.saveSettings();
+		void this.saveSettings();
 	}
 	findImageMediaId(url: string) {
 		return this.assetsManager.findMediaIdOfUrl("image", url);
@@ -765,7 +794,9 @@ export default class WeWritePlugin extends Plugin {
 		return null;
 	}
 
-	async proofContent(content: string): Promise<any[] | null> {
+	async proofContent(
+		content: string
+	): Promise<DeepSeekResult["corrections"] | null> {
 		if (!this.aiClient) {
 			new Notice($t("main.chat-llm-has-not-been-configured"));
 			return null;
@@ -797,7 +828,7 @@ export default class WeWritePlugin extends Plugin {
 		}
 		return null;
 	}
-	async generateImage(editor: Editor) {
+	generateImage(editor: Editor) {
 		if (!this.aiClient) {
 			new Notice($t("main.chat-llm-has-not-been-configured"));
 			return null;
@@ -805,19 +836,22 @@ export default class WeWritePlugin extends Plugin {
 		if (this.imageGenerateModal === undefined) {
 			this.imageGenerateModal = new ImageGenerateModal(
 				this,
-				async (url: string) => {
+				(url: string) => {
 					//save it to local folder.
 					if (url === undefined || url === null || url === "") {
 						new Notice($t("main.image-generation-failed"));
 					}
-					const fullPath = await ResourceManager.getInstance(
-						this
-					).saveImageFromUrl(url);
-
-					this.messageService.sendMessage(
-						"image-generated",
-						fullPath ? fullPath : url
-					);
+					void ResourceManager.getInstance(this)
+						.saveImageFromUrl(url)
+						.then((fullPath) => {
+							this.messageService.sendMessage(
+								"image-generated",
+								fullPath ? fullPath : url
+							);
+						})
+						.catch((error) => {
+							console.error("保存图片失败:", error);
+						});
 				}
 			);
 		}
@@ -826,7 +860,7 @@ export default class WeWritePlugin extends Plugin {
 		this.imageGenerateModal.open();
 	}
 
-	async prompt(
+	prompt(
 		message: string,
 		defaultValue?: string
 	): Promise<string | null> {
@@ -841,7 +875,7 @@ export default class WeWritePlugin extends Plugin {
 		});
 	}
 
-	async confirm(message: string): Promise<boolean> {
+	confirm(message: string): Promise<boolean> {
 		return new Promise((resolve) => {
 			const modal = new ConfirmModal(this.app, message, resolve);
 			modal.open();
@@ -857,7 +891,7 @@ export default class WeWritePlugin extends Plugin {
 		this.messageService = new MessageService();
 		await this.loadSettings();
 		this.wechatClient = WechatClient.getInstance(this);
-		this.assetsManager = await AssetsManager.getInstance(this.app, this);
+		this.assetsManager = AssetsManager.getInstance(this.app, this);
 		this.aiClient = AiClient.getInstance(this);
 
 		this.registerViews();
@@ -865,16 +899,20 @@ export default class WeWritePlugin extends Plugin {
 		this.addCommand({
 			id: "open-previewer",
 			name: $t("main.open-previewer"),
-			callback: () => this.activateView(),
+			callback: () => {
+				void this.activateView();
+			},
 		});
 		this.addCommand({
 			id: "open-material-view",
 			name: $t("main.open-material-view"),
-			callback: () => this.activateMaterialView(),
+			callback: () => {
+				void this.activateMaterialView();
+			},
 		});
 
-		this.addRibbonIcon("pen-tool", "WeWrite", () => {
-			this.activateView();
+		this.addRibbonIcon("pen-tool", "Wewrite", () => {
+			void this.activateView();
 		});
 
 		this.addSettingTab(new WeWriteSettingTab(this.app, this));

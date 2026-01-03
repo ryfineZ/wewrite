@@ -1,11 +1,15 @@
 import { App } from 'obsidian';
 
-export function getFrontmatter(app: App, content: string): Record<string, any> | null {
+export function getFrontmatter(app: App, content: string): Record<string, unknown> | null {
     const cache = app.metadataCache.getCache(''); 
     return cache?.frontmatter || null;
 }
 
-export function setFrontmatter(app: App, content: string, properties: Record<string, any>): string {
+export function setFrontmatter(
+	app: App,
+	content: string,
+	properties: Record<string, unknown>
+): string {
     const cache = app.metadataCache.getCache('');
     const existingFrontmatter = cache?.frontmatter || {};
     const updatedFrontmatter = { ...existingFrontmatter, ...properties };

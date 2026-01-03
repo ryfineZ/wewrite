@@ -73,87 +73,105 @@ export class QwenImageClient {
 		return header;
 	}
 	
+	private pollImageTask(taskId: string): Promise<string> {
+		const intervalMs = 2000;
+		const timeoutMs = 30000;
+
+		return new Promise((resolve) => {
+			const intervalId = window.setInterval(() => {
+				void this.checkImageGenerationStatus(taskId)
+					.then((json) => {
+						if (json.output.task_status === "SUCCEEDED") {
+							clearInterval(intervalId);
+							this.plugin.hideSpinner();
+							resolve(json.output.results?.[0]?.url ?? "");
+						}
+						if (
+							json.output.task_status === "FAILED" ||
+							json.output.task_status === "UNKNOWN"
+						) {
+							clearInterval(intervalId);
+							this.plugin.hideSpinner();
+							resolve("");
+						}
+					})
+					.catch((error) => {
+						console.error("检查图片生成状态失败:", error);
+						clearInterval(intervalId);
+						this.plugin.hideSpinner();
+						resolve("");
+					});
+			}, intervalMs);
+
+			window.setTimeout(() => {
+				clearInterval(intervalId);
+				this.plugin.hideSpinner();
+				resolve("");
+			}, timeoutMs);
+		});
+	}
 
 	public async generateCoverImageFromText(
 		prompt: string,
 		negative_prompt: string = "",
 		size: string = "1440*613"
 	): Promise<string> {
-		return new Promise(async (resolve, reject) => {
-			const headers = this.prepareImageGenerateRequestHeader();
-			if (!headers) {
-				throw new Error($t("utils.missing-api-configuration"));
-			}
-			const account = this.plugin.getDrawAIAccount();
-			if (!account) {
-				throw new Error($t("settings.no-chat-account-selected"));
-			}
-			this.plugin.showSpinner($t("ai.generating-image"));
+		const headers = this.prepareImageGenerateRequestHeader();
+		if (!headers) {
+			throw new Error($t("utils.missing-api-configuration"));
+		}
+		const account = this.plugin.getDrawAIAccount();
+		if (!account) {
+			throw new Error($t("settings.no-chat-account-selected"));
+		}
+		this.plugin.showSpinner($t("ai.generating-image"));
 
-			const response = await requestUrl({
-				...headers,
-				body: JSON.stringify({
-					model: account.model || "wanx2.1-t2i-turbo",
-					input: {
-						prompt: prompt,
-						negative_prompt: negative_prompt,
-					},
-					parameters: {
-						size: size, //`900*383`,
-						n: 1,
-					},
-				}),
-			});
-
-			if (response.status !== 200) {
-				throw new Error(
-					`API request failed with status ${response.status}`
-				);
-			}
-			const result = response.json;
-			const intervalId = setInterval(async () => {
-				const json = await this.checkImageGenerationStatus(
-					result.output.task_id
-				);
-				if (json.output.task_status === "SUCCEEDED") {
-					clearInterval(intervalId);
-					this.plugin.hideSpinner();
-					resolve(json.output.results[0].url);
-				}
-				if (
-					json.output.task_status === "FAILED" ||
-					json.output.task_status === "UNKNOWN"
-				) {
-					clearInterval(intervalId);
-					this.plugin.hideSpinner();
-					resolve("");
-				}
-			}, 2000);
-
-			setTimeout(() => {
-				clearInterval(intervalId);
-				reject("");
-			}, 30000);
+		const response = await requestUrl({
+			...headers,
+			body: JSON.stringify({
+				model: account.model || "wanx2.1-t2i-turbo",
+				input: {
+					prompt: prompt,
+					negative_prompt: negative_prompt,
+				},
+				parameters: {
+					size: size, //`900*383`,
+					n: 1,
+				},
+			}),
 		});
+
+		if (response.status !== 200) {
+			throw new Error(
+				`API request failed with status ${response.status}`
+			);
+		}
+		const result = response.json as QwenImageTaskResponse;
+		return await this.pollImageTask(result.output.task_id);
 	}
 
-	checkImageGenerationStatus(taskId: string): Promise<any> {
-		return new Promise(async (resolve, reject) => {
-			const headers = this.prepareImageTaskCheckingHeader();
-			if (!headers) {
-				this.plugin.hideSpinner();
-				throw new Error($t("utils.missing-api-configuration"));
-			}
-			if (!headers.url.endsWith("/")) {
-				headers.url += "/";
-			}
-			headers.url += taskId;
-			const response = await requestUrl({ ...headers, url: headers.url });
+	async checkImageGenerationStatus(taskId: string): Promise<QwenImageTaskResponse> {
+		const headers = this.prepareImageTaskCheckingHeader();
+		if (!headers) {
+			this.plugin.hideSpinner();
+			throw new Error($t("utils.missing-api-configuration"));
+		}
+		if (!headers.url.endsWith("/")) {
+			headers.url += "/";
+		}
+		headers.url += taskId;
+		const response = await requestUrl({ ...headers, url: headers.url });
 
-			resolve(response.json);
-		});
+		return response.json as QwenImageTaskResponse;
 	}
 
 	
 }
 
+type QwenImageTaskResponse = {
+	output: {
+		task_id: string;
+		task_status: "SUCCEEDED" | "FAILED" | "UNKNOWN" | string;
+		results?: Array<{ url: string }>;
+	};
+};

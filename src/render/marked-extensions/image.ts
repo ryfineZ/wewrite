@@ -24,7 +24,6 @@ export class Image extends WeWriteMarkedExtension {
 			
 			if (classNames?.includes('wewrite-avatar-image')) {
 				continue
-			}else{
 			}
 
 			const title = currentImg.getAttribute('title')
@@ -41,13 +40,17 @@ export class Image extends WeWriteMarkedExtension {
 		}
 		return dom
 	}
-	async postprocess(html: string) {
+	postprocess(html: string): Promise<string> {
 
 		const dom = sanitizeHTMLToDom(html)
 		const tempDiv = createEl('div');
 		tempDiv.appendChild(dom);
 		this.processImage(tempDiv)
-		return tempDiv.innerHTML;
+		const serializer = new XMLSerializer();
+		const result = Array.from(tempDiv.childNodes)
+			.map((node) => serializer.serializeToString(node))
+			.join('');
+		return Promise.resolve(result);
 	}
 
 	markedExtension(): MarkedExtension {

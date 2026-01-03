@@ -5,9 +5,6 @@
 
 import { App, Component, MarkdownRenderChild, MarkdownRenderer, MarkdownView } from "obsidian";
 import domtoimage from './dom-to-image-more';
-async function delay(milliseconds: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, milliseconds));
-}
 export class ObsidianMarkdownRenderer {
     private static instance: ObsidianMarkdownRenderer;
     private path: string
@@ -85,7 +82,10 @@ export class ObsidianMarkdownRenderer {
         return nodes[index]
     }
    
-    public async domToImage(element: HTMLElement, p:any={}): Promise<string> {
+    public async domToImage(
+        element: HTMLElement,
+        p: Record<string, unknown> = {}
+    ): Promise<string> {
         return await domtoimage.toPng(element, p)
     }
 	waitForSelector(

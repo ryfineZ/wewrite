@@ -6,14 +6,16 @@
 import { MarkedExtension, Tokens } from "marked";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { WeWriteMarkedExtension } from "./extension";
+import { serializeElement } from "src/utils/utils";
 
 const remixIconRegex = /`(ris|fas):([a-z0-9-]+)`/i;
 const remixIconRegexTokenizer = /^`(ris|fas):([a-z0-9-]+)`/i;
 export class RemixIconRenderer extends WeWriteMarkedExtension {
 	remixIndex: number = 0;
 
-	async prepare() {
+	prepare(): Promise<void> {
 		this.remixIndex = 0;
+		return Promise.resolve();
 	}
 
 
@@ -23,7 +25,7 @@ export class RemixIconRenderer extends WeWriteMarkedExtension {
 			return '<span>remix icon not found </span>';
 		}
 		this.remixIndex++
-		return root.outerHTML;
+		return serializeElement(root);
 	}
 
 

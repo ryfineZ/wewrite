@@ -94,7 +94,7 @@ export class LocalDraftManager {
         }
         return false
     }
-    public async getDraft(accountName: string, notePath: string): Promise<LocalDraftItem | undefined> {
+    public getDraft(accountName: string, notePath: string): Promise<LocalDraftItem | undefined> {
         return new Promise((resolve) => {
             this.db.get(accountName + notePath)
                 .then((doc) => {
@@ -107,7 +107,7 @@ export class LocalDraftManager {
         })
     }
 
-    public async setDraft(doc: LocalDraftItem): Promise<boolean> {
+    public setDraft(doc: LocalDraftItem): Promise<boolean> {
         return new Promise((resolve, reject) => {
             if (!doc.accountName || !doc.notePath) {
                 return reject(new Error($t('assets.invalid-draft')));
@@ -140,15 +140,23 @@ export class LocalDraftManager {
                     if (error.status === 404) {
                         // New document
                         return this.db.put(doc)
-                            .then(() => resolve(true))
-                            .catch(err => {
-                                console.error('Error creating new draft:', err);
-                                reject(err);
-                            });
-                    }
-                    console.error('Error checking existing draft:', error);
-                    reject(error);
-                });
+							.then(() => resolve(true))
+							.catch(err => {
+								console.error('Error creating new draft:', err);
+								const reason =
+									err instanceof Error
+										? err
+										: new Error(String(err));
+								reject(reason);
+							});
+					}
+					console.error('Error checking existing draft:', error);
+					const reason =
+						error instanceof Error
+							? error
+							: new Error(String(error));
+					reject(reason);
+				});
         });
     }
 }

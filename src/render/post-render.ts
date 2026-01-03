@@ -3,10 +3,9 @@
  * 
  */
 import { $t } from 'src/lang/i18n';
-import { fetchImageBlob } from 'src/utils/utils';
+import { fetchImageBlob, serializeElement } from 'src/utils/utils';
 import { WechatClient } from './../wechat-api/wechat-client';
 import WeWritePlugin from 'src/main';
-import { log } from 'console';
 function imageFileName(mime:string){
     const type = mime.split('/')[1]
     return `image-${new Date().getTime()}.${type}`
@@ -34,26 +33,24 @@ export function svgToPng(svgData: string): Promise<Blob> {
             }, 'image/png');
         };
 
-        img.onerror = (error) => {
-            reject(error);
+        img.onerror = () => {
+            reject(new Error($t('render.failed-to-load-image')));
         };
 
-         const encoder = new TextEncoder();
-         const uint8Array = encoder.encode(svgData);
-         const latin1String = String.fromCharCode.apply(null, uint8Array);
-         img.src = `data:image/svg+xml;base64,${btoa(latin1String)}`;
+        const encoder = new TextEncoder();
+        const uint8Array = encoder.encode(svgData);
+        let latin1String = '';
+        for (const byte of uint8Array) {
+            latin1String += String.fromCharCode(byte);
+        }
+        img.src = `data:image/svg+xml;base64,${btoa(latin1String)}`;
     });
 }
 
 function dataURLtoBlob(dataUrl: string): Blob {
     const parts = dataUrl.split(';base64,');
-	console.log('parts:', parts);
-	
     const contentType = parts[0].split(':')[1];
-	console.log('contentType', contentType);
-	
     const raw = window.atob(parts[1]);
-	console.log('raw:', raw);
     const rawLength = raw.length;
 
     const uInt8Array = new Uint8Array(rawLength);
@@ -61,7 +58,6 @@ function dataURLtoBlob(dataUrl: string): Blob {
     for (let i = 0; i < rawLength; ++i) {
         uInt8Array[i] = raw.charCodeAt(i);
     }
-	log('uInt8Array byteLength:', uInt8Array.byteLength);
     return new Blob([uInt8Array], { type: contentType });
 }
 export function getCanvasBlob(canvas: HTMLCanvasElement) {
@@ -77,14 +73,16 @@ export async function uploadSVGs(root: HTMLElement, wechatClient: WechatClient){
     })
 
     const uploadPromises = svgs.map(async (svg) => {
-        const svgString = svg.outerHTML;
+        const svgString = serializeElement(svg);
         if (svgString.length < 10000) {
             return
         }
         await svgToPng(svgString).then(async blob => {
             await wechatClient.uploadMaterial(blob, imageFileName(blob.type)).then(res => {
                 if (res){
-                    svg.outerHTML = `<img src="${res.url}" />`
+                    const img = document.createElement('img');
+                    img.src = res.url;
+                    svg.replaceWith(img);
                 }else{
                     console.error(`upload svg failed.`);
                 }
@@ -105,8 +103,9 @@ export async function uploadCanvas(root:HTMLElement, wechatClient:WechatClient):
         const blob = getCanvasBlob(canvas);
         await wechatClient.uploadMaterial(blob, imageFileName(blob.type)).then(res => {
             if (res){
-                canvas.outerHTML = `<img src="${res.url}" />`
-            }else{
+                const img = document.createElement('img');
+                img.src = res.url;
+                canvas.replaceWith(img);
             }
         })
     })

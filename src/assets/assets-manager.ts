@@ -58,7 +58,7 @@ export const initAssetsDB = () => {
 }
 export class AssetsManager {
     app: App;
-    assets: Map<string, any[]>
+    assets: Map<string, MaterialItem[]>
     db: PouchDB.Database;
     used: Map<string, string[]>
     confirmPublishModal: ConfirmPublishModal;
@@ -75,7 +75,7 @@ export class AssetsManager {
         this.db = initAssetsDB()
 
         this.plugin.messageService.registerListener('wechat-account-changed', (data: string) => {
-            this.loadMaterial(data)
+            void this.loadMaterial(data)
         })
         this.plugin.messageService.registerListener('delete-media-item', (item: MaterialItem) => {
             this.confirmDelete(item)
@@ -89,10 +89,10 @@ export class AssetsManager {
         this.plugin.messageService.registerListener('draft-item-updated', (item: MaterialItem) => {
             this.addImageItem(item)
         })
-        this.plugin.messageService.registerListener('publish-draft-item', async (item: DraftItem) => {
+        this.plugin.messageService.registerListener('publish-draft-item', (item: DraftItem) => {
             this.confirmPublish(item)
         })
-        this.plugin.messageService.registerListener('delete-media-item', async (item: MaterialItem) => {
+        this.plugin.messageService.registerListener('delete-media-item', (item: MaterialItem) => {
             this.confirmDelete(item)
         })
 
@@ -109,6 +109,14 @@ export class AssetsManager {
             AssetsManager.instance = new AssetsManager(app, plugin);
         }
         return AssetsManager.instance;
+    }
+
+    private isNewsLikeItem(item: MaterialItem): item is MaterialNewsItem | DraftItem {
+        return "content" in item;
+    }
+
+    private isMediaItem(item: MaterialItem): item is MaterialMeidaItem {
+        return "url" in item && "used" in item;
     }
     
     public async loadMaterial(accountName: string) {
@@ -133,7 +141,7 @@ export class AssetsManager {
         ];
         for (const type of types) {
             this.plugin.messageService.sendMessage(`clear-${type}-list`, null)
-            this.getAllMaterialOfType(type, (item) => { this.plugin.messageService.sendMessage(`${type}-item-updated`, item) }, accountName)
+            void this.getAllMaterialOfType(type, (item) => { this.plugin.messageService.sendMessage(`${type}-item-updated`, item) }, accountName)
         }
         this.plugin.assetsUpdated()
     }
@@ -158,7 +166,7 @@ export class AssetsManager {
             item.accountName = accountName
             item.type = 'news'
 
-            this.pushMaterailToDB(item)
+            void this.pushMaterailToDB(item)
             if (callback) {
                 callback(item)
             }
@@ -193,7 +201,7 @@ export class AssetsManager {
             if (callback) {
                 callback(i)
             }
-            this.pushMaterailToDB(i)
+            void this.pushMaterailToDB(i)
         })
         this.scanDraftNewsUsedImages()
     }
@@ -231,10 +239,10 @@ export class AssetsManager {
             if (callback) {
                 callback(item)
             }
-            this.pushMaterailToDB(item)
+            void this.pushMaterailToDB(item)
         })
     }
-    public getImageUsedUrl(imgItem: any) {
+    public getImageUsedUrl(imgItem: MaterialMeidaItem): string[] | null {
 
         let urls = null
         if (imgItem.url !== undefined && imgItem.url) {
@@ -259,7 +267,7 @@ export class AssetsManager {
 
         // Process news items
         const newsItems = this.assets.get(type) || [];
-        newsItems.forEach(news => {
+        newsItems.filter((item) => this.isNewsLikeItem(item)).forEach((news) => {
             news.content.news_item.forEach((item: NewsItem) => {
                 if (item.thumb_media_id) {
                     this.setUsed(item.thumb_media_id, item.url);
@@ -309,7 +317,7 @@ export class AssetsManager {
         })
     }
 
-    async fetchAllMeterialOfTypeFromDB(accountName: string, type: MediaType): Promise<MaterialItem[]> {
+    fetchAllMeterialOfTypeFromDB(accountName: string, type: MediaType): Promise<MaterialItem[]> {
         return new Promise((resolve) => {
 
             this.db.find({
@@ -326,7 +334,7 @@ export class AssetsManager {
 
         })
     }
-    async pushMaterailToDB(doc: MaterialItem): Promise<void> {
+    pushMaterailToDB(doc: MaterialItem): Promise<void> {
         return new Promise((resolve) => {
             if (doc._id === undefined) {
                 doc._id = doc.media_id
@@ -342,7 +350,7 @@ export class AssetsManager {
                         .then(() => {
                             resolve();
                         })
-                        .catch((error: any) => {
+                        .catch((error: unknown) => {
                             console.error('Error saving material:', error);
                             resolve()
                         });
@@ -358,7 +366,7 @@ export class AssetsManager {
             })
         })
     }
-    async AllMeterialOfTypeFromDB(media_id: string): Promise<MaterialItem[]> {
+    AllMeterialOfTypeFromDB(media_id: string): Promise<MaterialItem[]> {
         return new Promise((resolve) => {
             this.db.find({
                 selector: {
@@ -373,45 +381,42 @@ export class AssetsManager {
         })
     }
     async getAllMeterialOfTypeFromDB(accountName: string, type: string): Promise<MaterialItem[]> {
-        return new Promise(async (resolve) => {
+        const pageSize = 10;
+        let offset = 0;
+        const items: Array<MaterialItem> = [];
+        if (accountName === undefined || !accountName) {
+            return items;
+        }
+        while (true) {
+            const result = await this.db.find({
+                selector: {
+                    accountName: { $eq: accountName },
+                    type: { $eq: type }
+                },
+                limit: pageSize,
+                skip: offset
+            });
 
-            const pageSize = 10; 
-            let offset = 0; 
-            let total = 10; 
-            const items: Array<MaterialItem> = []
-            if (accountName === undefined || !accountName) {
-                resolve(items)
-                return
+            const docs = result.docs as Array<MaterialItem>;
+            if (docs.length === 0) {
+                break;
             }
-            while (true) {
-                const result = await this.db.find({
-                    selector: {
-                        accountName: { $eq: accountName },
-                        type: { $eq: type }
-                    },
-                    limit: pageSize,
-                    skip: offset
-                });
 
-                const docs = result.docs as Array<MaterialItem>;
-                if (docs.length === 0) {
-                    break; 
-                }
+            items.push(...docs);
 
-                items.push(...docs)
-
-                offset += docs.length;
-            }
-            items.sort((a, b) => {
-                return b.update_time - a.update_time
-            })
-            resolve(items)
+            offset += docs.length;
+        }
+        items.sort((a, b) => {
+            return b.update_time - a.update_time
         })
+        return items;
     }
     findUrlOfMediaId(type: MediaType, media_id: string) {
         const list = this.assets.get(type)
         if (list !== undefined) {
-            const m = list.find(item => item.media_id === media_id)
+            const m = list
+                .filter((item) => this.isMediaItem(item))
+                .find((item) => item.media_id === media_id)
 
             if (m !== undefined) {
                 return m.url
@@ -421,7 +426,9 @@ export class AssetsManager {
     findMediaIdOfUrl(type: MediaType, url: string) {
         const list = this.assets.get(type)
         if (list !== undefined) {
-            const m = list.find(item => item.url === url)
+            const m = list
+                .filter((item) => this.isMediaItem(item))
+                .find((item) => item.url === url)
 
             if (m !== undefined) {
                 return m.media_id
@@ -462,7 +469,6 @@ export class AssetsManager {
 
             // Perform bulk deletion
             return this.db.bulkDocs(docsToDelete);
-        }).then((result) => {
         }).catch((err) => {
             console.error('Error deleting documents:', err);
         });
@@ -482,22 +488,24 @@ export class AssetsManager {
         this.updateUsed(item.url)
         return true
     }
-    public async deleteDraftItem(item: any) {
+    public async deleteDraftItem(item: DraftItem) {
         if (!await this.plugin.wechatClient.deleteDraft(item.media_id)) {
             console.error('delete draft failed', item)
             return false;
         }
-        this.removeDocFromDB(item._id)
+        await this.removeDocFromDB(item._id!)
         this.plugin.messageService.sendMessage('draft-item-deleted', item)
-        this.updateUsed(item.url)
+        item.content.news_item.forEach((newsItem) => {
+            if (newsItem.url) {
+                this.updateUsed(newsItem.url);
+            }
+        });
         return true;
     }
     public async removeDocFromDB(_id: string) {
         await this.db.get(_id).then((doc) => {
             return this.db.remove(doc);
         })
-            .then((result) => {
-            })
             .catch((err) => {
                 console.error('Error deleting document:', err);
             });

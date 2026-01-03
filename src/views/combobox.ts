@@ -11,7 +11,7 @@ export class ComboBoxComponent extends Component {
         super();
         this.container = parent;
         this.options = new Set(options);
-        this.onChangeCallback = onChange || (() => {});
+        this.onChangeCallback = onChange ?? (() => undefined);
 
         this.createComboBox();
     }

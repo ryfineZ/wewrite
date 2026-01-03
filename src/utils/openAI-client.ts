@@ -103,7 +103,7 @@ export class OpenAIClient {
 				correction.start = content.indexOf(correction.original, start);
 				correction.end = correction.start + correction.original.length;
 				start = correction.end;
-				console.log(
+				console.debug(
 					`text[${correction.start},${correction.end}]: ${correction.original} -> ${correction.suggestion}`
 				);
 			}
@@ -169,7 +169,7 @@ export class OpenAIClient {
 			return null;
 		}
 		const openai = new OpenAI({
-			fetch: async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
+			'fetch': async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
 				const response = await obsidianFetch(url, init);
 				return response;
 			},
@@ -253,7 +253,7 @@ export class OpenAIClient {
 		sourceLang: string = "English",
 		targetLang: string = "Chinese"
 	): Promise<string> {
-		console.log('translateText in openAI');
+		console.debug('translateText in openAI');
 		
 		const openai = this.getChatAI();
 		if (!openai) {

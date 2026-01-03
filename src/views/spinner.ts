@@ -11,24 +11,23 @@ export  class Spinner {
 			const dot = dots.createDiv({
 				cls: `spinner-dot spinner-dot${i + 1}`,
 			});
-			dot.style.animationDelay = `${i * 0.3}s`;
+			dot.setCssProps({ 'animation-delay': `${i * 0.3}s` });
 		}
 		this.spinnerText = this.spinnerEl.createDiv({
 			cls: "spinner-text"});
 	}
 	showSpinner(text: string = "") {
-		this.spinnerEl.style.display = "flex";
+		this.spinnerEl.setCssProps({ display: "flex" });
 		this.spinnerText.setText(text);
 	}
 	isSpinning() {
-		return this.spinnerEl.style.display !== "none";
+		return getComputedStyle(this.spinnerEl).display !== "none";
 	}
 
 	hideSpinner() {
-		this.spinnerEl.style.display = "none";
+		this.spinnerEl.setCssProps({ display: "none" });
 	}
 	unload() {
 		this.spinnerEl.remove();
 	}
 }
-

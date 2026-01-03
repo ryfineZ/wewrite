@@ -15,6 +15,7 @@ import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { WeWriteMarkedExtension } from "./extension";
 import { $t } from "src/lang/i18n";
 import matter from "gray-matter";
+import { serializeElement } from "src/utils/utils";
 
 declare module "obsidian" {
 	interface Vault {
@@ -91,7 +92,7 @@ export class Embed extends WeWriteMarkedExtension {
 		return `fid-${this.index}`;
 	}
 
-	async prepare() {
+	prepare(): Promise<void> {
 		this.videoIndex = 0;
 		this.voiceIndex = 0;
 		this.pdfCropIndex = 0;
@@ -99,6 +100,7 @@ export class Embed extends WeWriteMarkedExtension {
 		this.embedMarkdownIndex = 0;
 		this.excalidrawIndex = 0;
 		this.markdownEmbedIndex = 0;
+		return Promise.resolve();
 	}
 	searchFile(originPath: string): TAbstractFile | null {
 		const resolvedPath = this.resolvePath(originPath);
@@ -454,8 +456,8 @@ export class Embed extends WeWriteMarkedExtension {
 					},
 					renderer: (token: Tokens.Generic) => {
 						const embedType = getEmbedType(token.href);
-						console.log("render embed type:", token, embedType);
-						
+						console.debug("render embed type:", token, embedType);
+
 						if (embedType == "image" || embedType == "webp") {
 							// images
 							let item = this.parseImageLink(token.href);
@@ -479,7 +481,7 @@ export class Embed extends WeWriteMarkedExtension {
 									Embed.fileCache.get(info.filename) ||
 									$t("render.render-failed");
 							} else {
-								this.renderSVGFile(info.filename, id);
+								void this.renderSVGFile(info.filename, id);
 							}
 							return `<span class="${info.classname}"><span class="note-embed-svg" id="${id}" ${info.style}>${svg}</span></span>`;
 						} else if (embedType == "excalidraw") {
@@ -560,7 +562,7 @@ export class Embed extends WeWriteMarkedExtension {
 			return $t("render.pdf-crop-failed");
 		}
 		this.pdfCropIndex++;
-		return `<section class="pdf-crop">${root.outerHTML}</section>`;
+		return `<section class="pdf-crop">${serializeElement(root)}</section>`;
 	}
 	renderVideo(href: string): string | false | undefined {
 		const root = ObsidianMarkdownRenderer.getInstance(
@@ -570,7 +572,7 @@ export class Embed extends WeWriteMarkedExtension {
 			return "render video failed";
 		}
 		this.videoIndex++;
-		return `<section class="video">${root.outerHTML}</section>`;
+		return `<section class="video">${serializeElement(root)}</section>`;
 	}
 	renderVoice(href: string): string | false | undefined {
 		const root = ObsidianMarkdownRenderer.getInstance(
@@ -580,6 +582,6 @@ export class Embed extends WeWriteMarkedExtension {
 			return "render voice failed";
 		}
 		this.voiceIndex++;
-		return `<section class="audio">${root.outerHTML}</section>`;
+		return `<section class="audio">${serializeElement(root)}</section>`;
 	}
 }

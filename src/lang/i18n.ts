@@ -11,7 +11,7 @@ declare global {
 		$t: (key: string, options?: string[]) => string;
 	}
 }
-i18n.init({
+void i18n.init({
 	debug: false,
 	lng: moment.locale(), //obsidian language
 	fallbackLng: "en", 

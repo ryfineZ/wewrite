@@ -15,11 +15,10 @@ export interface DeepSeekResult {
 
 declare global {
 	interface Window {
-		electron: any;
-		require: NodeRequire;
+		electron: unknown;
+		require: NodeJS.Require;
 	}
 }
 
 
 export { };
-

@@ -164,7 +164,6 @@ export class CSSMerger {
 
 					if (baseDecl === undefined || !baseDecl.important || decl.important) {
 						selectedRule.set(decl.prop, decl);
-					} else {
 					}
 				})
 			}
@@ -222,11 +221,17 @@ export class CSSMerger {
 							return;
 						}
 						let value = this.resolveCssVars(decl.value, this.vars);
-						target.style.setProperty(prop, decl.important ? value + ' !important' : value);
+						const fullValue = decl.important ? `${value} !important` : value;
+						this.appendStyleText(target, prop, fullValue);
 					})
 				}
 			} catch (error) {
-				console.log('error selector=>', selector, ' | Error=>', (error as Error).message);
+				console.debug(
+					'error selector=>',
+					selector,
+					' | Error=>',
+					(error as Error).message
+				);
 			}
 		})
 		let element = currentNode.firstElementChild;
@@ -253,5 +258,13 @@ export class CSSMerger {
 			this.removeClassName(element as HTMLElement);
 			element = element.nextElementSibling;
 		}
+	}
+
+	private appendStyleText(target: HTMLElement, prop: string, value: string) {
+		const prefix =
+			target.style.cssText && !target.style.cssText.trim().endsWith(";")
+				? "; "
+				: "";
+		target.style.cssText += `${prefix}${prop}: ${value};`;
 	}
 }

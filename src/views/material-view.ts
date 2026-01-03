@@ -42,14 +42,15 @@ export class MaterialView extends ItemView {
     return "package";
   }
 
-  async onOpen() {
+  onOpen(): Promise<void> {
     this.redraw();
     if (this.plugin.settings.selectedMPAccount !== undefined) {
-      this.plugin.assetsManager.loadMaterial(this.plugin.settings.selectedMPAccount)
+      void this.plugin.assetsManager.loadMaterial(
+        this.plugin.settings.selectedMPAccount
+      )
     }
+    return Promise.resolve();
   }
-
-  async onClose() { }
 
   public readonly redraw = (): void => {
     const rootEl = createDiv({ cls: 'nav-folder mod-root' });

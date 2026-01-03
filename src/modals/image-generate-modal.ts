@@ -55,7 +55,7 @@ export class ImageGenerateModal extends Modal {
         const cancelButton = toolbar.createEl('button', { text: $t('modals.cancel') });
 
         confirmButton.addEventListener('click', () => {
-            this.generate(size.value, prompt.value, negativePrompt.value);
+            void this.generate(size.value, prompt.value, negativePrompt.value);
             this.close();
         });
 

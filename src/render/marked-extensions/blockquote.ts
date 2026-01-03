@@ -13,27 +13,27 @@ import { $t } from "src/lang/i18n";
 
 export class BlockquoteRenderer extends WeWriteMarkedExtension {
   private calloutIndex:number = 0;
-    async prepare() { 
+    prepare(): Promise<void> { 
     if (!this.marked) {
       console.error("marked is not ready");
-      return;
+      return Promise.resolve();
     }
     this.calloutIndex = 0;
-    return;
+    return Promise.resolve();
   }
 
-  async rendererBlockquote(token: Tokens.Blockquote) {
+  async rendererBlockquote(token: Tokens.Blockquote): Promise<string> {
     // 使用marked来解析blockquote中的内联元素，如链接
-    const parsedText = await this.marked.parseInline(token.text);
+    const parsedText = await Promise.resolve(this.marked.parseInline(token.text));
     const text = parsedText.replace(/\n/gm, '<br>').trim();
     return `<blockquote dir="auto" ><span class="icon-pin"></span><div class="blockquote-inner" >${text}</div></blockquote>`
   }
-  async rendererCallout(_token: Tokens.Blockquote) {
+  rendererCallout(_token: Tokens.Blockquote): Promise<string> {
     const renderer = ObsidianMarkdownRenderer.getInstance(this.plugin.app);
     const root = renderer.queryElement(this.calloutIndex, '.callout:not(.admonition)');
 	
     if (!root) {
-      return $t('render.callout-failed');
+      return Promise.resolve($t('render.callout-failed'));
     }
     this.calloutIndex++;
     
@@ -52,7 +52,7 @@ export class BlockquoteRenderer extends WeWriteMarkedExtension {
 			}
 
 		}
-    return replaceDivWithSection(root)
+    return Promise.resolve(replaceDivWithSection(root))
   }
 
   markedExtension(): MarkedExtension {
@@ -62,7 +62,7 @@ export class BlockquoteRenderer extends WeWriteMarkedExtension {
         if (token.type !== 'blockquote') {
           return;
         }
-        const regex = /\[\!(.*?)\]/g;
+        const regex = /\[!(.*?)\]/g;
         const matched = token.text.match(regex);
         if (matched){
           token.html =  await this.rendererCallout(token as Tokens.Blockquote)
@@ -74,7 +74,7 @@ export class BlockquoteRenderer extends WeWriteMarkedExtension {
         name: 'blockquote',
         level: 'block',
         renderer: (token: Tokens.Generic) => {
-          return token.html;
+          return String(token.html ?? '');
         },
       }]
     }

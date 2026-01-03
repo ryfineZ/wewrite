@@ -1,4 +1,9 @@
-import { requestUrl } from 'obsidian';
+import { requestUrl, type RequestUrlParam } from 'obsidian';
+
+type ObsidianFetch = (
+  url: RequestInfo | URL | string,
+  init?: RequestInit
+) => Promise<Response>;
 
 function normalizeBody(body: unknown): string | ArrayBuffer | undefined {
   if (typeof body === 'string' || body === undefined) {
@@ -17,43 +22,59 @@ function normalizeBody(body: unknown): string | ArrayBuffer | undefined {
   throw new Error('Unsupported body type passed to requestUrl');
 }
 
-export const obsidianFetch: typeof fetch = async (url, init) => {
+export const obsidianFetch: ObsidianFetch = async (url, init) => {
   const method = init?.method ?? 'GET';
   const headers = init?.headers as Record<string, string> | undefined;
-  
-  const body = normalizeBody(init?.body);
-  const param = {
-    url: typeof url ==='string'? url : url.toString(),
-    method:method,
-	//@ts-ignore
-    headers: {
-		'Content-Type': 'application/json',
-		'Authorization': headers!.authorization}, 
-	body: body,
-  }
 
-  return await requestUrl(param
-		).then(
-		(res) => {
-			return {
-			  ok: res.status >= 200 && res.status < 300,
-			  status: res.status,
-			  statusText: '', // Obsidian 没有 statusText 字段
-			  headers: new Headers(res.headers),
-			  json: async () => JSON.parse(res.text),
-			  text: async () => res.text,
-			  arrayBuffer: async () => new TextEncoder().encode(res.text).buffer,
-			} as Response;
-		},
-	  ).catch((e) => {
-		return {
-		  ok: false,
-		  status: 500,
-		  statusText: 'Internal Server Error',
-		  headers: new Headers(),
-		  json: async () => ({ error: e }),
-		  text: async () => e.toString(),
-		  arrayBuffer: async () => new TextEncoder().encode(e.toString()).buffer,	
-		} as Response;	
-	});
+  const body = normalizeBody(init?.body);
+  const urlString = resolveUrlString(url);
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (headers?.authorization) {
+    requestHeaders.Authorization = headers.authorization;
+  }
+  const param: RequestUrlParam = {
+    url: urlString,
+    method: method,
+    headers: requestHeaders,
+    body: body,
+  };
+
+  return await requestUrl(param).then(
+    (res) => {
+      return {
+        ok: res.status >= 200 && res.status < 300,
+        status: res.status,
+        statusText: '', // Obsidian 没有 statusText 字段
+        headers: new Headers(res.headers),
+        json: () => Promise.resolve(JSON.parse(res.text)),
+        text: () => Promise.resolve(res.text),
+        arrayBuffer: () => Promise.resolve(new TextEncoder().encode(res.text).buffer),
+      } as Response;
+    },
+  ).catch((e) => {
+    return {
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: new Headers(),
+      json: () => Promise.resolve({ error: e }),
+      text: () => Promise.resolve(String(e)),
+      arrayBuffer: () => Promise.resolve(new TextEncoder().encode(String(e)).buffer),
+    } as Response;
+  });
 };
+
+function resolveUrlString(url: RequestInfo | URL): string {
+  if (typeof url === 'string') {
+    return url;
+  }
+  if (url instanceof URL) {
+    return url.toString();
+  }
+  if (url instanceof Request) {
+    return url.url;
+  }
+  throw new Error('Unsupported request url type');
+}

@@ -77,10 +77,8 @@ export class SynonymsModal extends Modal {
 		this.selectedIndex = index;
 		items[this.selectedIndex]?.addClass('selected');
 		
-		const selectedItem = items[this.selectedIndex] as HTMLElement;
-		if (selectedItem) {
-			selectedItem.scrollIntoView({ block: 'nearest' });
-		}
+		const selectedItem = items[this.selectedIndex];
+		selectedItem?.scrollIntoView({ block: 'nearest' });
 	}
 
 	onClose() {

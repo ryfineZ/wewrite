@@ -28,7 +28,7 @@ export function parseMath(math: string): string {
     
   const node = mathjax_document.convert(math, mathjax_options)
   
-  return adaptor.innerHTML(node)
+  return new XMLSerializer().serializeToString(node)
 }
 
 const inlineRule = /\$(.*)\$/g // /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;

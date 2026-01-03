@@ -125,14 +125,14 @@ export const proofreadPlugin = ViewPlugin.fromClass(
 			this.menu.appendChild(suggestionText);
 
 			const acceptButton = document.createElement("button");
-			acceptButton.innerHTML = "✅";
+			acceptButton.textContent = "✅";
 			acceptButton.onclick = () => {
 				this.replaceText(target, suggestion);
 				this.menu?.remove();
 			};
 
 			const ignoreButton = document.createElement("button");
-			ignoreButton.innerHTML = "❌";
+			ignoreButton.textContent = "❌";
 			ignoreButton.onclick = () => {
 				this.removeHighlight(target);
 				this.menu?.remove();
@@ -168,7 +168,7 @@ export const proofreadPlugin = ViewPlugin.fromClass(
 	}
 );
 
-export async function proofreadText(
+export function proofreadText(
 	editor: Editor,
 	view: MarkdownView,
 	suggestions: Array<PROOFREAD_SUGGESTION> | undefined = undefined
@@ -176,11 +176,12 @@ export async function proofreadText(
 	const text = editor.getValue();
 
 	if (!suggestions) {
-		suggestions = await getProofreadSuggestions(text);
+		suggestions = getProofreadSuggestions(text);
 	}
 
 	// 正确获取CodeMirror实例
-	const cmEditor = (view.editor as any).cm as EditorView;
+	type EditorWithCm = Editor & { cm?: EditorView };
+	const cmEditor = (view.editor as EditorWithCm).cm;
 
 	if (!cmEditor) {
 		new Notice("无法获取编辑器实例");
@@ -212,9 +213,9 @@ export async function proofreadText(
 	}
 }
 
-export async function getProofreadSuggestions(
+export function getProofreadSuggestions(
 	text: string
-): Promise<Array<PROOFREAD_SUGGESTION>> {
+): Array<PROOFREAD_SUGGESTION> {
 	return [
 		{ start: 16, end: 19, suggestion: "The" },
 		{ start: 40, end: 46, suggestion: "人民" },

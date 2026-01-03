@@ -3,8 +3,8 @@ declare module 'postcss-custom-properties' {
 
   interface Options {
     preserve?: boolean | 'computed';
-    importFrom?: string | string[] | { [key: string]: any };
-    exportTo?: string | string[] | ((customProperties: any) => void);
+    importFrom?: string | string[] | { [key: string]: unknown };
+    exportTo?: string | string[] | ((customProperties: Record<string, string>) => void);
   }
 
   const plugin: (options?: Options) => Plugin;

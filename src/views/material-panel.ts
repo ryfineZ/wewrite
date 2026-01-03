@@ -5,10 +5,16 @@ import { Menu, Notice, setIcon } from "obsidian";
 import { AssetsManager } from "src/assets/assets-manager";
 import { $t } from "src/lang/i18n";
 import WeWritePlugin from "src/main";
-import { MaterialMeidaItem, MediaType } from "src/wechat-api/wechat-types";
+import {
+	DraftItem,
+	MaterialItem,
+	MaterialMeidaItem,
+	MaterialNewsItem,
+	MediaType,
+} from "src/wechat-api/wechat-types";
 
 interface REROUCE_ITEM {
-	item: MaterialMeidaItem;
+	item: MaterialItem;
 	el: HTMLElement;
 }
 
@@ -37,7 +43,7 @@ export class MaterialPanel {
 		this.titleSpan = this.header.createSpan({ cls: 'wewrite-material-panel-title' });
 		this.totalSpan = this.header.createSpan({ cls: 'wewrite-material-panel-total' });
 
-		this.content = parent.createDiv({ cls: 'wewrite-material-panel-content', text: 'content' });
+		this.content = parent.createDiv({ cls: 'wewrite-material-panel-content' });
 		setIcon(this.refreshButton, 'folder-sync')
 
 
@@ -48,23 +54,29 @@ export class MaterialPanel {
 		this.container.appendChild(this.header);
 		this.container.appendChild(this.content);
 
-		this.refreshButton.addEventListener('click', () => this.refreshContent());
+		this.refreshButton.addEventListener('click', () => {
+			void this.refreshContent();
+		});
 		this.initContent()
 
 		this.plugin.messageService.registerListener(`clear-${this.type}-list`, () => {
 			this.clearContent()
 		})
-		this.plugin.messageService.registerListener(`${this.type}-item-updated`, (item) => {
+		this.plugin.messageService.registerListener(`${this.type}-item-updated`, (item: MaterialItem) => {
 			this.addItem(item)
 		})
-		this.plugin.messageService.registerListener(`${this.type}-item-deleted`, (item) => {
+		this.plugin.messageService.registerListener(`${this.type}-item-deleted`, (item: MaterialItem) => {
 			this.removeItem(item)
 		})
 		if (this.type === 'image') {
-			this.plugin.messageService.registerListener(`image-used-updated`, (item) => {
+			this.plugin.messageService.registerListener(`image-used-updated`, (item: MaterialMeidaItem) => {
 				this.updateItemUsed(item)
 			})
 		}
+	}
+
+	private isMediaItem(item: MaterialItem): item is MaterialMeidaItem {
+		return "url" in item && "used" in item;
 	}
 	getLocalItems() {
 		const list = this.plugin.assetsManager.assets.get(this.type)
@@ -76,26 +88,27 @@ export class MaterialPanel {
 			})
 		}
 	}
-	async refreshContent(): Promise<any> {
+	async refreshContent(): Promise<void> {
 		this.content.empty();
 		this.items = []
 		this.setTotal(0);
 
 		if (this.type === 'draft') {
 
-			return await this.plugin.assetsManager.getAllDrafts((item) => {
+			await this.plugin.assetsManager.getAllDrafts((item) => {
 				this.addItem(item)
 			}, this.plugin.settings.selectedMPAccount)
+			return;
 		}
 		await this.plugin.assetsManager.getAllMaterialOfType(this.type, (item) => {
 			this.addItem(item)
 		}, this.plugin.settings.selectedMPAccount)
 
 	}
-	showContextMenu(mediaItem: MaterialMeidaItem, event: MouseEvent) {
+	showContextMenu(mediaItem: MaterialItem, event: MouseEvent) {
 		const menu = new Menu();
 
-		if (mediaItem.type === 'image') {
+		if (this.type === 'image' && this.isMediaItem(mediaItem)) {
 			const urls = AssetsManager.getInstance(this.plugin.app, this.plugin).getImageUsedUrl(mediaItem)
 			if (urls === null || urls === undefined) {
 				menu.addItem((item) => {
@@ -106,8 +119,6 @@ export class MaterialPanel {
 							this.plugin.messageService.sendMessage("delete-media-item", mediaItem)
 						});
 				});
-			} else {
-
 			}
 
 			//set as cover image
@@ -122,11 +133,11 @@ export class MaterialPanel {
 		}
 
 		// voice and video
-		if (mediaItem.type === 'voice' || mediaItem.type === 'video') {
+		if ((this.type === 'voice' || this.type === 'video') && this.isMediaItem(mediaItem)) {
 			if (!mediaItem.used) {
 
 				menu.addItem((item) => {
-					item.setTitle('delete')
+					item.setTitle('Delete')
 						.setIcon('eye')
 						.setDisabled(mediaItem.used)
 						.onClick(() => {
@@ -137,34 +148,42 @@ export class MaterialPanel {
 
 		}
 
-		if (mediaItem.type === 'draft') {
+		if (this.type === 'draft') {
+			const draftItem = mediaItem as DraftItem;
 			menu.addItem((item) => {
 				item.setTitle($t('views.delete-draft'))
 					.setIcon('trash-2')
-					.onClick(async () => {
-						this.plugin.messageService.sendMessage("delete-draft-item", mediaItem)
+					.onClick(() => {
+						this.plugin.messageService.sendMessage("delete-draft-item", draftItem)
 					});
 			});
 			menu.addItem((item) => {
 				item.setTitle($t('views.free-publish'))
 					.setIcon('send')
-					.onClick(async () => {
-						this.plugin.messageService.sendMessage("publish-draft-item", mediaItem)
+					.onClick(() => {
+						this.plugin.messageService.sendMessage("publish-draft-item", draftItem)
 					});
 			});
 			menu.addItem((item) => {
 				item.setTitle($t('views.preview-draft'))
 					.setIcon('eye')
-					.onClick(async () => {
-						this.plugin.wechatClient.senfForPreview(mediaItem.media_id, this.plugin.settings.previewer_wxname, this.plugin.settings.selectedMPAccount)
+					.onClick(() => {
+						void this.plugin.wechatClient.senfForPreview(
+							draftItem.media_id,
+							this.plugin.settings.previewer_wxname,
+							this.plugin.settings.selectedMPAccount
+						)
 
 					});
 			});
 			menu.addItem((item) => {
 				item.setTitle($t('views.send-mass-message'))
 					.setIcon('send')
-					.onClick(async () => {
-						this.plugin.wechatClient.massSendAll(mediaItem.media_id, this.plugin.settings.selectedMPAccount)
+					.onClick(() => {
+						void this.plugin.wechatClient.massSendAll(
+							draftItem.media_id,
+							this.plugin.settings.selectedMPAccount
+						)
 
 					});
 			});
@@ -192,12 +211,12 @@ export class MaterialPanel {
 
 	}
 
-	isItemExist(item: any) {
+	isItemExist(item: MaterialItem) {
 		return this.items.some((i) => {
 			return i.item.media_id === item.media_id
 		})
 	}
-	addItem(item: any) {
+	addItem(item: MaterialItem) {
 		if (this.isItemExist(item)) {
 			return
 		}
@@ -209,36 +228,40 @@ export class MaterialPanel {
 
 
 		if (this.type === 'draft' || this.type === 'news') {
-			let title = item.content.news_item[0].title
+			const newsItem = item as DraftItem | MaterialNewsItem;
+			let title = newsItem.content.news_item[0].title
 			if (title === undefined || !title) {
 				title = $t('views.no-title-article')
 			}
-			//itemDiv.innerHTML = `<a href=${item.content.news_item[0].url}> ${title}</a>`
-			const link = itemDiv.createEl('a', { href: item.content.news_item[0].url })
+			const link = itemDiv.createEl('a', { href: newsItem.content.news_item[0].url })
 			link.text = title
-			itemDiv.addEventListener('click', () => { })
 			itemDiv.addClass("draft-news-item")
 		} else if (this.type === 'image') {
 			//   itemDiv.innerHTML = '<img src="' + item.url + '" alt="' + item.name + '" />'
+			const imageItem = item as MaterialMeidaItem;
 			const img = itemDiv.createEl('img')
-			img.src = item.url
-			img.alt = item.name
-			itemDiv.addEventListener('click', () => {
-			})
+			img.src = imageItem.url
+			img.alt = imageItem.name
 		} else if (this.type === 'video') {
+			const videoItem = item as MaterialMeidaItem & { cover_url?: string };
 			const video = itemDiv.createEl('video', { cls: 'draft-video-item' })
 			video.setAttribute('controls', 'controls')
-			video.setAttribute('poster', item.cover_url)
+			if (videoItem.cover_url) {
+				video.setAttribute('poster', videoItem.cover_url)
+			}
 			const wechatClient = this.plugin.wechatClient
-			wechatClient.getMaterialById(item.media_id).then(video_info => {
+			void wechatClient.getMaterialById(item.media_id).then(video_info => {
 				const source = video.createEl('source', { type: 'video/mp4' })
 				source.setAttribute('src', video_info.down_url)
 				video.appendChild(source)
 			})
 		} else if (this.type === 'voice') {
-			itemDiv.innerHTML = '<audio src="' + item.url + '" controls></audio>'
+			const voiceItem = item as MaterialMeidaItem;
+			const audio = itemDiv.createEl('audio')
+			audio.src = voiceItem.url
+			audio.setAttribute('controls', 'controls')
 		} else {
-			console.error($t('views.other-type-has-not-been-implemented'), + this.type);
+			console.error($t('views.other-type-has-not-been-implemented'), this.type);
 
 		}
 		this.setTotal(this.items.length)
@@ -248,17 +271,19 @@ export class MaterialPanel {
 			this.showContextMenu(item, event)
 		})
 	}
-	updateItemUsed(item: any) {
+	updateItemUsed(item: MaterialMeidaItem) {
 		const old_item = this.items.find((i) => {
 			return i.item.media_id === item.media_id
 		})
 		if (old_item !== undefined && old_item !== null) {
-			old_item.item.used = item.used
+			if (this.isMediaItem(old_item.item)) {
+				old_item.item.used = item.used
+			}
 		} else {
 			this.addItem(item)
 		}
 	}
-	removeItem(item: any) {
+	removeItem(item: MaterialItem) {
 		const index = this.items.findIndex((i) => {
 			return i.item.media_id === item.media_id
 
@@ -273,9 +298,13 @@ export class MaterialPanel {
 
 	removeItemsByAttributes(attributes: Partial<MaterialMeidaItem>) {
 		const itemsToRemove = this.items.filter(i => {
+			const mediaItem = this.isMediaItem(i.item) ? i.item : null;
+			if (!mediaItem) {
+				return false;
+			}
 			return Object.entries(attributes).every(([key, value]) => {
 				const itemKey = key as keyof MaterialMeidaItem;
-				return i.item[itemKey] === value;
+				return mediaItem[itemKey] === value;
 			});
 		});
 
@@ -290,7 +319,7 @@ export class MaterialPanel {
 		this.setTotal(this.items.length);
 		return itemsToRemove.length;
 	}
-	async initContent(): Promise<any> {
+	initContent(): void {
 		this.content.empty();
 		this.setTotal(0);
 
@@ -298,7 +327,7 @@ export class MaterialPanel {
 		if (items === undefined || items === null) {
 			return;
 		}
-		items.forEach((item: any) => {
+		items.forEach((item: MaterialItem) => {
 			this.addItem(item)
 		})
 	}

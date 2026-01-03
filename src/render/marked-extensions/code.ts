@@ -12,7 +12,7 @@
 
 import { Tokens } from "marked";
 import { $t } from "src/lang/i18n";
-import { replaceDivWithSection } from "src/utils/utils";
+import { replaceDivWithSection, serializeElement } from "src/utils/utils";
 import { ObsidianMarkdownRenderer } from "../markdown-render";
 import { WeWriteMarkedExtension } from "./extension";
 import { Notice } from "obsidian";
@@ -23,10 +23,11 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 	admonitionIndex: number = 0;
 	chartsIndex: number = 0;
 
-	async prepare() {
+	prepare(): Promise<void> {
 		this.mermaidIndex = 0;
 		this.admonitionIndex = 0;
 		this.chartsIndex = 0;
+		return Promise.resolve();
 	}
 
 	static srcToBlob(src: string) {
@@ -122,13 +123,13 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 			}
 
 		}
-		return root.outerHTML
+		return serializeElement(root)
 	}
-	async renderAdmonitionAsync(_token: Tokens.Generic, _type: string) {
+	renderAdmonitionAsync(_token: Tokens.Generic, _type: string): Promise<string> {
 		const renderer = ObsidianMarkdownRenderer.getInstance(this.plugin.app);
 		let root = renderer.queryElement(this.admonitionIndex, '.callout.admonition')
 		if (!root) {
-			return $t('render.admonition-failed');
+			return Promise.resolve($t('render.admonition-failed'));
 		}
 		this.admonitionIndex++
 
@@ -146,7 +147,7 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 			}
 
 		}
-		return replaceDivWithSection(root)//root.outerHTML
+		return Promise.resolve(replaceDivWithSection(root))//root.outerHTML
 	}
 
 	async renderMermaidAsync(token: Tokens.Generic) {
@@ -180,7 +181,7 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 	renderCharts(_token: Tokens.Generic) {
 		//the MarkdownRender doen't work well with it. use the preview instead.
 		if (!this.isPluginInstlled('obsidian-charts')) {
-			console.log(`charts plugin not installed.`);
+			console.debug(`charts plugin not installed.`);
 			new Notice($t('rnder.charts-plugin-not-installed'))
 			return false;
 		}

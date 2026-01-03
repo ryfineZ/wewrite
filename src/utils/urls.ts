@@ -2,6 +2,7 @@
  * Url handling
  */
 import { App, arrayBufferToBase64, sanitizeHTMLToDom, TAbstractFile, TFile } from 'obsidian';
+import { serializeChildren } from 'src/utils/utils';
 
 export function isMarkdownFile(file: TFile | TAbstractFile) {
 	let ext = ''
@@ -49,7 +50,7 @@ export class UrlUtils {
         }
         return null;
     }
-    public async getInternalLinkDisplayUrl(internalLink: string): Promise<string | null> {
+    public getInternalLinkDisplayUrl(internalLink: string): Promise<string | null> {
         const filePath = this.parseObsidianUrl(internalLink);
 
         if (filePath) {
@@ -59,7 +60,7 @@ export class UrlUtils {
                 return this.getDisplayUrl(file);
             }
         }
-        return null;
+        return Promise.resolve(null);
     }
 }
 
@@ -76,7 +77,7 @@ export function DomToDom(node: HTMLElement, queies: string[]) {
             index++;
         }
     }
-    const html = node.innerHTML
+    const html = serializeChildren(node)
     const root = sanitizeHTMLToDom(html)
     for (const [id, element] of nodeMap) {
         const replaceNode = root.querySelector(`#${id}`)
@@ -86,4 +87,3 @@ export function DomToDom(node: HTMLElement, queies: string[]) {
     }
     return root
 }
-

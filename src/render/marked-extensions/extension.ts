@@ -34,10 +34,10 @@ export abstract class WeWriteMarkedExtension {
         this.previewRender = previewRender
         this.marked = marked
     }
-    async prepare() { return; }
-    async postprocess(html:string) { return html; }
-    async beforePublish() { }
-    async cleanup() { return; }
+    prepare(): Promise<void> { return Promise.resolve(); }
+    postprocess(html:string): Promise<string> { return Promise.resolve(html); }
+    beforePublish(): Promise<void> { return Promise.resolve(); }
+    cleanup(): Promise<void> { return Promise.resolve(); }
     abstract markedExtension(): MarkedExtension
 	public isPluginInstlled(pluginId:string) {
 		const plugins = this.plugin.app.plugins.plugins;
