@@ -26,7 +26,10 @@ function getHeadingLevel(element:Element) {
 function isSubContent(currnetHeading: Element, currentNode:Element){
 	const nodeLevel = getHeadingLevel(currentNode)
 	const headingLevel = getHeadingLevel(currnetHeading)
-	return nodeLevel === null || nodeLevel > headingLevel!
+	if (headingLevel === null) {
+		return true;
+	}
+	return nodeLevel === null || nodeLevel > headingLevel
 }
 export class Summary extends WeWriteMarkedExtension {
     processHeading(dom: HTMLDivElement, heading: string) {

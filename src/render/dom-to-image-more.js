@@ -453,7 +453,7 @@
 
               for (const property of ['left', 'right', 'top', 'bottom']) {
                 if (targetElement.style.getPropertyValue(property)) {
-                  targetElement.style[property] = '0px';
+                  setStyleProperty(targetElement.style, property, '0px');
                 }
               }
             }
