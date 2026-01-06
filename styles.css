@@ -841,7 +841,11 @@ proofreed
 }
 
 .wewrite-render-preview {
-	display:  none;
+	position: absolute;
+	left: -100000px;
+	top: 0;
+	width: 1200px;
+	visibility: hidden;
 }
 
 .wewrite-domtoimage-sandbox {

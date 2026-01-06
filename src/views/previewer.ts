@@ -243,9 +243,8 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		this.renderDiv = mainDiv.createDiv({ cls: "render-container" });
 		this.renderDiv.id = "render-div";
 		this.renderPreviewer = mainDiv.createDiv({
-			cls: ".wewrite-render-preview",
+			cls: "wewrite-render-preview",
 		})
-		this.renderPreviewer.hide()
 		// 使用常规 DOM 容器，避免 Shadow DOM 带来的额外开销
 		this.containerDiv = this.renderDiv.createDiv({ cls: "wewrite-article" });
 		this.articleDiv = this.containerDiv.createDiv({ cls: "article-div" });

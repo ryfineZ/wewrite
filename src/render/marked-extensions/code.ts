@@ -165,17 +165,64 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 			return
 		}
 
-		const svg = root.querySelector('svg')
-		svg?.setAttr('width', '100%')
-		svg?.setAttr('height', '100%')
-
-		const dataUrl = await renderer.domToImage(root)
-
-		const style = root.querySelector('style')
-		if (style) {
-			style.parentNode!.removeChild(style)
+		await renderer.waitForSelector(root, "svg", 5000);
+		const svg = root.querySelector('svg') as SVGElement | null;
+		if (!svg) {
+			return;
 		}
-		token.html = `<section id="wewrite-mermaid-${index}" class="mermaid"> <img src="${dataUrl}" class="mermaid-image"> </section>`
+
+		const previewer = root.closest(".wewrite-render-preview") as HTMLElement | null;
+		const previewVisibility = previewer?.style.visibility ?? "";
+		const rootVisibility = root.style.visibility;
+		const rootDisplay = root.style.display;
+
+		try {
+			if (previewer) {
+				previewer.style.visibility = "visible";
+			}
+			root.style.visibility = "visible";
+			root.style.display = "block";
+
+			const { width, height } = this.getMermaidSize(svg);
+			const dataUrl = await renderer.domToImage(svg as unknown as HTMLElement, {
+				width,
+				height,
+			});
+
+			token.html = `<section id="wewrite-mermaid-${index}" class="mermaid"><img src="${dataUrl}" class="mermaid-image" style="width:${width}px;height:auto;"></section>`;
+		} catch (error) {
+			console.error(error);
+		} finally {
+			if (previewer) {
+				previewer.style.visibility = previewVisibility;
+			}
+			root.style.visibility = rootVisibility;
+			root.style.display = rootDisplay;
+		}
+	}
+
+	private getMermaidSize(svg: SVGElement) {
+		const rect = svg.getBoundingClientRect();
+		let width = Math.round(rect.width);
+		let height = Math.round(rect.height);
+		if (!width || !height) {
+			const viewBox = (svg as SVGSVGElement).viewBox?.baseVal;
+			if (viewBox && viewBox.width && viewBox.height) {
+				width = Math.round(viewBox.width);
+				height = Math.round(viewBox.height);
+			}
+		}
+		if (!width || !height) {
+			const attrWidth = svg.getAttribute("width");
+			const attrHeight = svg.getAttribute("height");
+			const parsedWidth = attrWidth ? parseFloat(attrWidth) : 0;
+			const parsedHeight = attrHeight ? parseFloat(attrHeight) : 0;
+			if (parsedWidth) width = Math.round(parsedWidth);
+			if (parsedHeight) height = Math.round(parsedHeight);
+		}
+		if (!width) width = 800;
+		if (!height) height = 400;
+		return { width, height };
 	}
 
 	renderCharts(_token: Tokens.Generic) {

@@ -1,13 +1,21 @@
 .wewrite .mermaid {
     display: flex;
     flex-direction: column;
-    padding: 3px;
-    border: solid 1px #ccc;
-    border-radius: 3px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
-.wewrite .mermaid image
- {
+.wewrite .mermaid image {
     width: 100%;
     margin: auto;
+}
+
+.wewrite .mermaid img {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: block;
 }
