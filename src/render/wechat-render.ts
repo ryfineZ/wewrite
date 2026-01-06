@@ -189,8 +189,8 @@ export class WechatRender {
 	) {
 		// 直接读取 Markdown 并走 marked 解析，减少双重渲染的开销
 		const md = await this.plugin.app.vault.adapter.read(path);
-		const { content } = matter(md);
-		let html = await this.marked.parse(content);
+		// 每次解析前重置扩展内部状态（links、mermaid 索引等）
+		let html = await this.parse(md);
 		html = await this.postprocess(html);
 		return html;
 	}
