@@ -25,6 +25,7 @@ export class ObsidianMarkdownRenderer {
         return ObsidianMarkdownRenderer.instance;
     }
     public async render(path: string, container: HTMLElement, view: Component) {
+		// 使用 Obsidian 自带渲染器生成 DOM（用于处理内部链接/嵌入等）
         if (path === undefined || !path || !path.toLowerCase().endsWith('.md')) {
             return;
         }
@@ -40,10 +41,15 @@ export class ObsidianMarkdownRenderer {
 		this.container.empty();
 		this.container.show();
         this.rendering = true
+		if (this.mdv) {
+			this.mdv.unload();
+		}
         // await this.loadComponents(view)
         this.previewEl = createDiv()
         this.markdownBody = this.previewEl.createDiv()
         this.mdv = new MarkdownRenderChild(this.markdownBody)
+		this.view.addChild(this.mdv)
+		this.container.appendChild(this.previewEl)
         this.path = path
         const markdown = await this.app.vault.adapter.read(path)
         await MarkdownRenderer.render(this.app, markdown, this.markdownBody, path, this.mdv
@@ -51,14 +57,17 @@ export class ObsidianMarkdownRenderer {
             // || this.app.workspace.activeLeaf?.view
             // || this.mdv //new MarkdownRenderChild(this.el)
         )
-
-        this.container.appendChild(this.previewEl)
         try {
-			await Promise.all([
-				this.waitForSelector(this.previewEl, ".callout-title svg", 500),
-				this.waitForSelector(this.previewEl, ".mermaid", 1000),
-				this.waitForSelector(this.previewEl, "svg", 1000),
-			]);
+			const waiters: Promise<void>[] = [];
+			if (/^\s*>+\s*\[!/m.test(markdown)) {
+				waiters.push(this.waitForSelector(this.previewEl, ".callout", 1000));
+			}
+			if (/```\s*mermaid/i.test(markdown)) {
+				waiters.push(this.waitForSelector(this.previewEl, ".mermaid svg", 5000));
+			}
+			if (waiters.length) {
+				await Promise.all(waiters);
+			}
 		} catch (err) {
 			console.warn("部分插件渲染超时（非致命）", err);
 		}

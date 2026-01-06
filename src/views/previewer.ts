@@ -28,6 +28,7 @@ import {
 } from "src/render/post-render";
 import { serializeChildren } from "src/utils/utils";
 import { WechatRender } from "src/render/wechat-render";
+import { ObsidianMarkdownRenderer } from "src/render/markdown-render";
 import { ResourceManager } from "../assets/resource-manager";
 import { WechatClient } from "../wechat-api/wechat-client";
 import { MPArticleHeader } from "./mp-article-header";
@@ -321,6 +322,11 @@ export class PreviewPanel extends ItemView implements PreviewRender {
 		if (activeFile.extension !== "md") {
 			return `<h1>Not a markdown file</h1>`;
 		}
+		await ObsidianMarkdownRenderer.getInstance(this.plugin.app).render(
+			activeFile.path,
+			this.renderPreviewer,
+			this
+		);
 		let html = await WechatRender.getInstance(this.plugin, this).parseNote(
 			activeFile.path,
 			this.renderPreviewer,
