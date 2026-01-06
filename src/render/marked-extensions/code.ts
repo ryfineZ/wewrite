@@ -166,25 +166,22 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 		}
 
 		await renderer.waitForSelector(root, "svg", 5000);
-		const svg = root.querySelector('svg') as SVGElement | null;
+		const svg = root.querySelector<SVGElement>("svg");
 		if (!svg) {
 			return;
 		}
 
-		const previewer = root.closest(".wewrite-render-preview") as HTMLElement | null;
-		const previewVisibility = previewer?.style.visibility ?? "";
-		const rootVisibility = root.style.visibility;
-		const rootDisplay = root.style.display;
+		const previewer = root.closest<HTMLElement>(".wewrite-render-preview");
+		const previewerHadClass =
+			previewer?.classList.contains("wewrite-render-preview-visible") ?? false;
+		const rootHadClass = root.classList.contains("wewrite-mermaid-visible");
 
 		try {
-			if (previewer) {
-				previewer.style.visibility = "visible";
-			}
-			root.style.visibility = "visible";
-			root.style.display = "block";
+			previewer?.classList.add("wewrite-render-preview-visible");
+			root.classList.add("wewrite-mermaid-visible");
 
 			const { width, height } = this.getMermaidSize(svg);
-			const dataUrl = await renderer.domToImage(svg as unknown as HTMLElement, {
+			const dataUrl = await renderer.domToImage(svg, {
 				width,
 				height,
 			});
@@ -193,11 +190,12 @@ export class CodeRenderer extends WeWriteMarkedExtension {
 		} catch (error) {
 			console.error(error);
 		} finally {
-			if (previewer) {
-				previewer.style.visibility = previewVisibility;
+			if (previewer && !previewerHadClass) {
+				previewer.classList.remove("wewrite-render-preview-visible");
 			}
-			root.style.visibility = rootVisibility;
-			root.style.display = rootDisplay;
+			if (!rootHadClass) {
+				root.classList.remove("wewrite-mermaid-visible");
+			}
 		}
 	}
 

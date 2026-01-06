@@ -55,7 +55,7 @@ const calloutIcons = new Map<string, CalloutInfo>(Object.entries({
 
 function matchCallout(text: string | undefined) {
 	if (!text) return "";
-	const regex = /\[\!(.*?)\]/;
+	const regex = /\[!(.*?)\]/;
 	const match = text.match(regex);
 	if (!match) return "";
 	return match[1].trim();
@@ -87,11 +87,11 @@ function getCalloutTitle(callout: string, text: string) {
 }
 
 export class BlockquoteRenderer extends WeWriteMarkedExtension {
-	async prepare() {
+	prepare(): Promise<void> {
 		if (!this.marked) {
 			console.error("marked is not ready");
-			return;
 		}
+		return Promise.resolve();
 	}
 
 	async rendererBlockquote(token: Tokens.Blockquote) {

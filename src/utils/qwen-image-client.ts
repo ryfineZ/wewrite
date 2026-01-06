@@ -146,7 +146,7 @@ export class QwenImageClient {
 				`API request failed with status ${response.status}`
 			);
 		}
-		const result = response.json as QwenImageTaskResponse;
+		const result: QwenImageTaskResponse = response.json;
 		return await this.pollImageTask(result.output.task_id);
 	}
 
@@ -162,7 +162,8 @@ export class QwenImageClient {
 		headers.url += taskId;
 		const response = await requestUrl({ ...headers, url: headers.url });
 
-		return response.json as QwenImageTaskResponse;
+		const result: QwenImageTaskResponse = response.json;
+		return result;
 	}
 
 	
@@ -171,7 +172,7 @@ export class QwenImageClient {
 type QwenImageTaskResponse = {
 	output: {
 		task_id: string;
-		task_status: "SUCCEEDED" | "FAILED" | "UNKNOWN" | string;
+		task_status: "SUCCEEDED" | "FAILED" | "UNKNOWN";
 		results?: Array<{ url: string }>;
 	};
 };

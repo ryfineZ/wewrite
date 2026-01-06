@@ -43,6 +43,6 @@ function main() {
         .map(function (file) { return extractThemeData(path.join(THEMES_DIR, file)); })
         .filter(function (item) { return item !== null; });
     writeThemesJson(themes, OUTPUT_FILE);
-    console.log("\u63D0\u53D6\u5B8C\u6210\uFF0C\u5199\u5165 ".concat(OUTPUT_FILE));
+    console.debug("\u63D0\u53D6\u5B8C\u6210\uFF0C\u5199\u5165 ".concat(OUTPUT_FILE));
 }
 main();

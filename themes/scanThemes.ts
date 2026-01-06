@@ -41,14 +41,14 @@ function writeThemesJson(themes: { name: string, file: string }[], outputPath: s
 
 // 主函数
 function main() {
-	console.log(`Scanning themes in ${THEMES_DIR}... `);
+	console.debug(`Scanning themes in ${THEMES_DIR}... `);
   const files = getMarkdownFiles(THEMES_DIR);
   const themes = files
     .map(file => extractThemeData(path.join(THEMES_DIR, file)))
     .filter((item): item is { name: string, file: string } => item !== null);
   
   writeThemesJson(themes, OUTPUT_FILE);
-  console.log(`提取完成，写入 ${OUTPUT_FILE}`);
+  console.debug(`提取完成，写入 ${OUTPUT_FILE}`);
 }
 
 main();

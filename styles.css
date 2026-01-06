@@ -848,6 +848,15 @@ proofreed
 	visibility: hidden;
 }
 
+.wewrite-render-preview.wewrite-render-preview-visible {
+	visibility: visible;
+}
+
+.wewrite-mermaid-visible {
+	visibility: visible;
+	display: block;
+}
+
 .wewrite-domtoimage-sandbox {
 	position: fixed;
 	visibility: hidden;

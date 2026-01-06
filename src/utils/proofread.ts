@@ -116,8 +116,7 @@ export const proofreadPlugin = ViewPlugin.fromClass(
 
 			this.menu = document.createElement("div");
 			this.menu.classList.add("proofread-menu");
-			this.menu.style.left = `${x}px`;
-			this.menu.style.top = `${y}px`;
+			this.menu.setCssProps({ left: `${x}px`, top: `${y}px` });
 
 			const suggestionText = document.createElement("div");
 			suggestionText.classList.add("suggestion");

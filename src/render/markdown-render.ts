@@ -92,7 +92,7 @@ export class ObsidianMarkdownRenderer {
     }
    
     public async domToImage(
-        element: HTMLElement,
+        element: Element,
         p: Record<string, unknown> = {}
     ): Promise<string> {
         return await domtoimage.toPng(element, p)
