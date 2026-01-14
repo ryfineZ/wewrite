@@ -44,7 +44,7 @@ export class Summary extends WeWriteMarkedExtension {
             const nextHeading = hEls[i+1]
             if (currentHeading) {
                 const d = createEl('details')
-                d.createEl('summary', { text: currentHeading.textContent as string })
+                d.createEl('summary', { text: currentHeading.textContent ?? "" })
                 let current = currentHeading.nextSibling
                 
                 while (current && isSubContent(currentHeading, current as Element) ) {
